@@ -1,5 +1,5 @@
 from dotenv import load_dotenv
-import os # Import os here to use it for path
+import os
 
 # Explicitly load .env from the project root and force override
 dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
@@ -34,59 +34,36 @@ app = Flask(__name__, instance_relative_config=True)
 app.jinja_env.add_extension('jinja2.ext.do') # Enable the 'do' extension
 
 # --- Configuration Loading ---
-# Load secret key from .env or use a default (ensure .env has SECRET_KEY)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'default_secret_key_change_me')
+# Load .env file first
+load_dotenv()
 
-# --- Corrected Database URI Configuration Logic ---
-def configure_database_uri(flask_app):
-    """Determines the correct SQLAlchemy Database URI based on .env or defaults."""
-    database_url_from_env = os.environ.get('DATABASE_URL')
-    db_path_type = "Default"
-
-    if database_url_from_env:
-        # IMPORTANT: Handle 'sqlite:///instance/...' specifically
-        if database_url_from_env.startswith('sqlite:///instance/'):
-            db_filename = database_url_from_env.split('instance/', 1)[-1] # Get filename e.g., 'site.db'
-            # Ensure the instance folder exists
-            try:
-                os.makedirs(flask_app.instance_path, exist_ok=True)
-            except OSError as e:
-                print(f"---> [DB Config Error] Could not create instance folder {flask_app.instance_path}: {e}")
-            # Construct path inside the *actual* instance folder
-            database_uri = f'sqlite:///{os.path.join(flask_app.instance_path, db_filename)}'
-            db_path_type = ".env specified instance path"
-            print(f"---> [DB Config] Using .env instance path: {db_filename}")
-        elif database_url_from_env.startswith('sqlite:///'):
-            # Handle standard relative SQLite path (relative to project root)
-            database_uri = database_url_from_env
-            db_path_type = ".env specified relative path"
-            print(f"---> [DB Config] Using .env relative SQLite path: {database_url_from_env}")
-        else:
-            # Assume other database URL (e.g., PostgreSQL, MySQL)
-            database_uri = database_url_from_env
-            db_path_type = ".env specified other DB type"
-            print(f"---> [DB Config] Using .env other DB type: {database_url_from_env}")
+# Database configuration
+def get_database_uri():
+    # Prefer DATABASE_URL from environment variable (for production/external DBs)
+    database_url = os.environ.get('DATABASE_URL')
+    if database_url:
+        print("---> [DB Config] Using DATABASE_URL from environment")
+        # Ensure SQLAlchemy uses 'postgresql' scheme for psycopg2
+        if database_url.startswith("postgres://"): 
+            database_url = database_url.replace("postgres://", "postgresql://", 1)
+        return database_url
     else:
-        # Fallback to instance folder if DATABASE_URL not in .env
-        default_db_filename = 'site.db'
-        # Ensure the instance folder exists
-        try:
-            os.makedirs(flask_app.instance_path, exist_ok=True)
-        except OSError as e:
-            print(f"---> [DB Config Error] Could not create instance folder {flask_app.instance_path}: {e}")
-        database_uri = f'sqlite:///{os.path.join(flask_app.instance_path, default_db_filename)}'
-        db_path_type = "Instance folder fallback"
-        print(f"---> [DB Config] Using default instance path: {default_db_filename}")
+        # Fallback to SQLite in instance folder for local development if DATABASE_URL not set
+        basedir = os.path.abspath(os.path.dirname(__file__))
+        instance_path = os.path.join(basedir, 'instance')
+        db_path = os.path.join(instance_path, 'site.db')
+        print(f"---> [DB Config] Using SQLite fallback: {db_path}")
+        return f'sqlite:///{db_path}'
 
-    print(f"---> [DB Config] FINAL Type: {db_path_type}")
-    return database_uri
-
-app.config['SQLALCHEMY_DATABASE_URI'] = configure_database_uri(app)
-print(f"---> [Flask App] FINAL Database URI set to: {app.config['SQLALCHEMY_DATABASE_URI']}")
-
+# Secret Key configuration
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'fallback_secret_key_only_for_dev')
+app.config['SQLALCHEMY_DATABASE_URI'] = get_database_uri()
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Load SendGrid config into Flask config (Still attempt this)
+# Print final DB URI being used
+print(f"---> [Flask App] FINAL Database URI set to: {app.config['SQLALCHEMY_DATABASE_URI']}")
+
+# SendGrid Configuration (already reading from os.environ)
 app.config['SENDGRID_API_KEY'] = os.environ.get('SENDGRID_API_KEY')
 app.config['MAIL_FROM_EMAIL'] = os.environ.get('MAIL_FROM_EMAIL')
 
