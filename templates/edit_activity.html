@@ -1,0 +1,92 @@
+{% extends 'layout.html' %}
+
+{% block title %}Edit Activity{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-2xl font-semibold mb-6">Edit Activity</h1>
+
+    <form method="POST" action="{{ url_for('edit_activity', activity_id=activity.id) }}" class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
+        
+        {# Activity Type #}
+        <div class="mb-4">
+            <label class="block text-gray-700 text-sm font-bold mb-2" for="activity_type">
+                Activity Type <span class="text-red-500">*</span>
+            </label>
+            <select id="activity_type" name="activity_type" required
+                    class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                <option value="Call" {% if activity.activity_type == 'Call' %}selected{% endif %}>Call</option>
+                <option value="Email" {% if activity.activity_type == 'Email' %}selected{% endif %}>Email</option>
+                <option value="Meeting" {% if activity.activity_type == 'Meeting' %}selected{% endif %}>Meeting</option>
+                <option value="LinkedIn" {% if activity.activity_type == 'LinkedIn' %}selected{% endif %}>LinkedIn Message</option>
+                <option value="Other" {% if activity.activity_type == 'Other' %}selected{% endif %}>Other</option>
+            </select>
+        </div>
+
+        {# Description #}
+        <div class="mb-4">
+            <label class="block text-gray-700 text-sm font-bold mb-2" for="description">
+                Description/Notes
+            </label>
+            <textarea id="description" name="description" rows="4"
+                      class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">{{ activity.description or '' }}</textarea>
+        </div>
+
+        {# Date #}
+        <div class="mb-4">
+            <label class="block text-gray-700 text-sm font-bold mb-2" for="date">
+                Date
+            </label>
+            {# Format date as YYYY-MM-DD for the input field #}
+            <input type="date" id="date" name="date" value="{{ activity.date.strftime('%Y-%m-%d') if activity.date else '' }}"
+                   class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+        </div>
+
+        {# Contact Name #}
+        <div class="mb-4">
+            <label class="block text-gray-700 text-sm font-bold mb-2" for="contact_name">
+                Contact Name
+            </label>
+            <input type="text" id="contact_name" name="contact_name" value="{{ activity.contact_name or '' }}"
+                   class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+        </div>
+
+        {# Company Name #}
+        <div class="mb-6">
+            <label class="block text-gray-700 text-sm font-bold mb-2" for="company_name">
+                Company Name
+            </label>
+            <input type="text" id="company_name" name="company_name" value="{{ activity.company_name or '' }}"
+                   class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+        </div>
+
+        {# Associated Deal #}
+        <div class="mb-6">
+            <label class="block text-gray-700 text-sm font-bold mb-2" for="deal_id">
+                Associated Deal (Optional)
+            </label>
+            <select id="deal_id" name="deal_id"
+                    class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                <option value="">-- Select a Deal --</option>
+                {% for deal in deals %}
+                    <option value="{{ deal.id }}" {% if activity.deal_id == deal.id %}selected{% endif %}>{{ deal.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        {# Submit Button #}
+        <div class="flex items-center space-x-3">
+            {# Primary Button: Save Changes #}
+            <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded shadow-sm inline-flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 3.75V16.5m-4.5-12.75V16.5m-4.5-12.75V16.5m0 4.5L7.5 21l-3-3m6 0-3 3 3 3M19.5 3.75h.008v.008h-.008V3.75Z" /></svg> {# Using save icon #}
+                Update Activity
+            </button>
+            {# Secondary Button: Cancel #}
+            <a href="{{ url_for('index') }}" class="bg-white hover:bg-gray-50 text-gray-700 font-medium py-2 px-4 rounded border border-gray-300 shadow-sm inline-flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg> {# Using X mark icon #}
+                Cancel
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

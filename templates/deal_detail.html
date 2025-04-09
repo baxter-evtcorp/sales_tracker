@@ -1,0 +1,87 @@
+{% extends 'layout.html' %}
+
+{% block title %}Deal Details - {{ deal.name }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="bg-white shadow overflow-hidden sm:rounded-lg p-6">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold text-gray-900">{{ deal.name }}</h1>
+            <div>
+                <a href="{{ url_for('edit_deal', deal_id=deal.id) }}" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded shadow-sm inline-flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>
+                    Edit Deal
+                </a>
+                <a href="{{ url_for('deals') }}" class="bg-white hover:bg-gray-50 text-gray-700 font-medium py-2 px-4 rounded border border-gray-300 shadow-sm inline-flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" /></svg>
+                    Back to Deals
+                </a>
+                {# Danger Button: Delete (Optional, uncomment if needed) #}
+                {#
+                <form method="POST" action="{{ url_for('delete_deal', deal_id=deal.id) }}" onsubmit="return confirm('Are you sure you want to delete this deal? This cannot be undone.');" class="inline">
+                    <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded shadow-sm inline-flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>
+                        Delete Deal
+                    </button>
+                </form>
+                #}
+            </div>
+        </div>
+
+        <dl class="grid grid-cols-1 gap-x-4 gap-y-8 sm:grid-cols-2">
+            <div class="sm:col-span-1">
+                <dt class="text-sm font-medium text-gray-500">Stage</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ deal.stage }}</dd>
+            </div>
+            <div class="sm:col-span-1">
+                <dt class="text-sm font-medium text-gray-500">Revenue</dt>
+                <dd class="mt-1 text-sm text-gray-900">${{ "{:,.2f}".format(deal.revenue or 0) }}</dd>
+            </div>
+            <div class="sm:col-span-1">
+                <dt class="text-sm font-medium text-gray-500">Gross Profit</dt>
+                <dd class="mt-1 text-sm text-gray-900">${{ "{:,.2f}".format(deal.gross_profit or 0) }}</dd>
+            </div>
+            <div class="sm:col-span-1">
+                <dt class="text-sm font-medium text-gray-500">Expected Close Date</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ deal.expected_close_date.strftime('%Y-%m-%d') if deal.expected_close_date else 'N/A' }}</dd>
+            </div>
+        </dl>
+
+        <hr class="my-6">
+
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">MEDDPIC Details</h2>
+        <dl class="grid grid-cols-1 gap-x-4 gap-y-8 sm:grid-cols-2">
+            <div class="sm:col-span-1">
+                <dt class="text-sm font-medium text-gray-500">Metrics</dt>
+                <dd class="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{{ deal.metrics if deal.metrics else 'Not specified' }}</dd>
+            </div>
+            <div class="sm:col-span-1">
+                <dt class="text-sm font-medium text-gray-500">Economic Buyer</dt>
+                <dd class="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{{ deal.economic_buyer if deal.economic_buyer else 'Not specified' }}</dd>
+            </div>
+            <div class="sm:col-span-1">
+                <dt class="text-sm font-medium text-gray-500">Decision Criteria</dt>
+                <dd class="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{{ deal.decision_criteria if deal.decision_criteria else 'Not specified' }}</dd>
+            </div>
+            <div class="sm:col-span-1">
+                <dt class="text-sm font-medium text-gray-500">Decision Process</dt>
+                <dd class="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{{ deal.decision_process if deal.decision_process else 'Not specified' }}</dd>
+            </div>
+            <div class="sm:col-span-1">
+                <dt class="text-sm font-medium text-gray-500">Paper Process</dt>
+                <dd class="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{{ deal.paper_process if deal.paper_process else 'Not specified' }}</dd>
+            </div>
+            <div class="sm:col-span-1">
+                <dt class="text-sm font-medium text-gray-500">Identify Pain</dt>
+                <dd class="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{{ deal.identify_pain if deal.identify_pain else 'Not specified' }}</dd>
+            </div>
+            <div class="sm:col-span-1">
+                <dt class="text-sm font-medium text-gray-500">Champion</dt>
+                <dd class="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{{ deal.champion if deal.champion else 'Not specified' }}</dd>
+            </div>
+        </dl>
+
+        {# Add Related Activities section later #}
+    </div>
+</div>
+{% endblock %}

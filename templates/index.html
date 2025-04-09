@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Sales Clarity{% endblock %}</title>
+    <!-- Include Tailwind Play CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // Optional: Add custom Tailwind configuration here if needed later
+        // tailwind.config = {
+        //   theme: {
+        //     extend: {
+        //       colors: {
+        //         clifford: '#da373d',
+        //       }
+        //     }
+        //   }
+        // }
+    </script>
+    <style type="text/tailwindcss">
+        /* You can add custom CSS/Tailwind directives here if needed */
+        /* Example:
+        @layer utilities {
+          .content-auto {
+            content-visibility: auto;
+          }
+        }
+        */
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+    <div class="container mx-auto p-4">
+        {# Wrap logo and title in a flex container, justify to space them apart #}
+        <div class="flex items-center justify-between mb-6">
+            <img src="{{ url_for('static', filename='images/EVT_logo_HiRes.jpg') }}" alt="EVT Logo" class="h-10 w-auto"> {# Adjust h-10 (height) as needed #}
+            <h1 class="text-3xl font-bold text-blue-600">Sales Clarity App</h1>
+        </div>
+
+        {# Display flashed messages with Tailwind styling #}
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="mb-4">
+                {% for category, message in messages %}
+                    {% set alert_color = 'blue' %}
+                    {% if category == 'success' %}{% set alert_color = 'green' %}
+                    {% elif category == 'danger' %}{% set alert_color = 'red' %}
+                    {% elif category == 'warning' %}{% set alert_color = 'yellow' %}
+                    {% elif category == 'info' %}{% set alert_color = 'blue' %}
+                    {% endif %}
+                    <div class="bg-{{ alert_color }}-100 border border-{{ alert_color }}-400 text-{{ alert_color }}-700 px-4 py-3 rounded relative" role="alert">
+                        <span class="block sm:inline">{{ message }}</span>
+                    </div>
+                {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <nav class="bg-white p-4 rounded shadow mb-6">
+            <ul class="flex space-x-4">
+                <li><a href="{{ url_for('index') }}" class="{% if request.endpoint == 'index' %}font-bold text-indigo-700{% else %}text-blue-500 hover:text-blue-700{% endif %}">Home</a></li>
+                {% if current_user.is_authenticated %}
+                    <li><a href="{{ url_for('dashboard') }}" class="{% if request.endpoint == 'dashboard' %}font-bold text-indigo-700{% else %}text-blue-500 hover:text-blue-700{% endif %}">Dashboard</a></li>
+                    <li><a href="{{ url_for('log_activity') }}" class="{% if request.endpoint == 'log_activity' %}font-bold text-indigo-700{% else %}text-blue-500 hover:text-blue-700{% endif %}">Log Activity</a></li>
+                    <li><a href="{{ url_for('deals') }}" class="{% if request.endpoint == 'deals' %}font-bold text-indigo-700{% else %}text-blue-500 hover:text-blue-700{% endif %}">Manage Deals</a></li>
+                    <li class="flex-grow"><span class="text-gray-700">Welcome, {{ current_user.email }}!</span></li>
+                    <li><a href="{{ url_for('logout') }}" class="text-blue-500 hover:text-blue-700">Logout</a></li>
+                {% else %}
+                    <li class="flex-grow"></li> {# Spacer #}
+                    <li><a href="{{ url_for('login') }}" class="{% if request.endpoint == 'login' %}font-bold text-indigo-700{% else %}text-blue-500 hover:text-blue-700{% endif %}">Login</a></li>
+                    <li><a href="{{ url_for('register') }}" class="{% if request.endpoint == 'register' %}font-bold text-indigo-700{% else %}text-blue-500 hover:text-blue-700{% endif %}">Register</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+
+        <hr class="my-6 border-gray-300">
+
+        <!-- Content area -->
+        <main class="bg-white p-6 rounded shadow">
+            {% block content %}
+            {% if not current_user.is_authenticated %}
+                {# Content for logged-out users #}
+                <div class="text-center mb-8">
+                    <img src="{{ url_for('static', filename='images/EVT_logo_HiRes.jpg') }}" alt="EVT Logo" class="mx-auto h-24 w-auto mb-4">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-2">Welcome to the Activity Tracker</h2>
+                    <p class="text-lg text-gray-600">Track your sales activities and manage your deals effectively.</p>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-8 mb-8">
+                    <div>
+                        <h3 class="text-2xl font-semibold text-gray-700 mb-4 border-b pb-2">Use Cases</h3>
+                        <ul class="list-disc list-inside space-y-2 text-gray-600">
+                            <li>Log calls, emails, and meetings related to deals.</li>
+                            <li>Visualize your sales pipeline stages.</li>
+                            <li>Track deal values and expected close dates.</li>
+                            <li>Keep contact information organized.</li>
+                            <li><em class="text-gray-500">(Add more specific use cases here...)</em></li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 class="text-2xl font-semibold text-gray-700 mb-4 border-b pb-2">Release Notes</h3>
+                        <div class="space-y-4 text-gray-600">
+                            <p><strong>Version 1.1 (Current):</strong> Dashboard pagination, unified table views, Docker support.</p>
+                            <p><strong>Version 1.0:</strong> Initial release with core activity logging and deal management.</p>
+                            <p><em class="text-gray-500">(Add more detailed release notes or link to a separate page...)</em></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-center mt-8 pt-6 border-t">
+                    <p class="text-gray-700">Please <a href="{{ url_for('login') }}" class="text-indigo-600 hover:underline">login</a> or <a href="{{ url_for('register') }}" class="text-indigo-600 hover:underline">register</a> to start using the tracker.</p>
+                </div>
+
+            {% else %}
+                {# Default content if no block is provided by extending template (e.g., for logged-in users if index is accessed directly) #}
+                {# This shouldn't typically be seen due to the redirect in app.py #}
+                <h2 class="text-2xl font-semibold mb-4">Welcome!</h2>
+                <p class="text-gray-700">Redirecting you to the dashboard...</p>
+                <script>window.location.href = "{{ url_for('dashboard') }}";</script> {# Fallback JS redirect #}
+            {% endif %}
+            {% endblock %}
+        </main>
+    </div>
+
+</body>
+</html>

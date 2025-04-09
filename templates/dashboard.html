@@ -1,0 +1,198 @@
+{% extends "index.html" %}
+{% from "_macros.html" import render_pagination %}
+
+{% block title %}Dashboard - Sales Clarity{% endblock %}
+
+{% block content %}
+<h1 class="text-3xl font-bold mb-6">Dashboard</h1>
+
+{# --- Email Reports Section --- #}
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+    {# Activity Report Form #}
+    <div class="bg-white shadow sm:rounded-lg p-4 md:p-6">
+        <h3 class="text-lg font-medium leading-6 text-gray-900 mb-3">Email Activity Report</h3>
+        <form action="{{ url_for('email_activity_report') }}" method="POST">
+            <fieldset class="space-y-2">
+                <legend class="sr-only">Select time period</legend>
+                <div class="flex items-center">
+                    <input id="activity_week" name="activity_period" type="radio" value="week" checked class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300">
+                    <label for="activity_week" class="ml-3 block text-sm font-medium text-gray-700">This Week's Activities</label>
+                </div>
+                <div class="flex items-center">
+                    <input id="activity_month" name="activity_period" type="radio" value="month" class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300">
+                    <label for="activity_month" class="ml-3 block text-sm font-medium text-gray-700">This Month's Activities</label>
+                </div>
+            </fieldset>
+            <div class="mt-4">
+                <label for="activity_recipient_email" class="block text-sm font-medium text-gray-700">Send To:</label>
+                <input type="text" name="recipient_email" id="activity_recipient_email" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="recipient1@example.com, recipient2@example.com">
+            </div>
+            <div class="mt-4">
+                <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    Send Activity Report
+                </button>
+            </div>
+        </form>
+    </div>
+
+    {# Deal Report Form #}
+    <div class="bg-white shadow sm:rounded-lg p-4 md:p-6">
+        <h3 class="text-lg font-medium leading-6 text-gray-900 mb-3">Email Deal Report</h3>
+        <form action="{{ url_for('email_deal_report') }}" method="POST">
+            <fieldset class="space-y-2">
+                <legend class="sr-only">Select deal status</legend>
+                <div class="flex items-center">
+                    <input id="deal_open" name="deal_status" type="radio" value="open" checked class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300">
+                    <label for="deal_open" class="ml-3 block text-sm font-medium text-gray-700">Open Deals</label>
+                </div>
+                <div class="flex items-center">
+                    <input id="deal_closed" name="deal_status" type="radio" value="closed" class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300">
+                    <label for="deal_closed" class="ml-3 block text-sm font-medium text-gray-700">Closed Deals</label>
+                </div>
+            </fieldset>
+            <div class="mt-4">
+                <label for="deal_recipient_email" class="block text-sm font-medium text-gray-700">Send To:</label>
+                <input type="text" name="recipient_email" id="deal_recipient_email" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-teal-500 focus:border-teal-500 sm:text-sm" placeholder="recipient1@example.com, recipient2@example.com">
+            </div>
+            <div class="mt-4">
+                <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500">
+                    Send Deal Report
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{# --- End Email Reports Section --- #}
+
+{# Main container - Changed from grid to simple div for stacking #}
+<div class="space-y-6"> {# Added space-y-6 for vertical spacing between boxes #}
+
+    {# Section 1: Recent Activities #}
+    <div class="bg-white shadow overflow-hidden sm:rounded-lg p-6">
+        <h2 class="text-xl font-semibold mb-4">Recent Activities</h2>
+        {% if activities_pagination and activities_pagination.items %}
+            <div class="overflow-x-auto shadow border-b border-gray-200 sm:rounded-lg">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Related Deal</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for activity in activities_pagination.items %}
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ activity.activity_type }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ activity.date.strftime('%Y-%m-%d') }}</td>
+                            <td class="px-6 py-4 text-sm text-gray-500 whitespace-pre-wrap">{{ activity.description or 'N/A' }}</td> {# Display full notes #}
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {% if activity.deal %}
+                                    <a href="{{ url_for('edit_deal', deal_id=activity.deal.id) }}" class="text-indigo-600 hover:text-indigo-900">{{ activity.deal.name }}</a>
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ activity.contact_name or 'N/A' }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ activity.company_name or 'N/A' }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <div class="flex items-center space-x-2">
+                                    {# Primary Button: Edit #}
+                                    <a href="{{ url_for('edit_activity', activity_id=activity.id) }}" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-1 px-3 rounded shadow-sm inline-flex items-center text-sm">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 mr-1"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>
+                                        Edit
+                                    </a>
+                                    {# Danger Button: Delete #}
+                                    <form method="POST" action="{{ url_for('delete_activity', activity_id=activity.id) }}" onsubmit="return confirm('Are you sure you want to delete this activity?');" class="inline">
+                                        <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-medium py-1 px-3 rounded shadow-sm inline-flex items-center text-sm">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 mr-1"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>
+                                            Delete
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="7" class="px-6 py-4 text-center text-sm text-gray-500">No recent activities found.</td> {# Updated colspan to 7 #}
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+        {# Activity Pagination Controls - Using custom param names #}
+        {% if activities_pagination and activities_pagination.total > 0 %}
+            {{ render_pagination(activities_pagination, 'dashboard', [5, 10, 25, 'All'], current_act_per_page, page_param='act_page', per_page_param='act_per_page') }}
+        {% endif %}
+    </div>
+
+    {# Section 2: Open Deals #}
+    <div class="bg-white shadow overflow-hidden sm:rounded-lg p-6">
+        <h2 class="text-xl font-semibold mb-4">Open Deals</h2>
+        {% if deals_pagination and deals_pagination.items %}
+            <div class="overflow-x-auto shadow border-b border-gray-200 sm:rounded-lg">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stage</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Revenue</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gross Profit</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Close Date</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for deal in deals_pagination.items %}
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                <a href="{{ url_for('edit_deal', deal_id=deal.id) }}" class="text-indigo-600 hover:text-indigo-900">{{ deal.name }}</a>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ deal.stage }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${{ "{:,.2f}".format(deal.revenue or 0) }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${{ "{:,.2f}".format(deal.gross_profit or 0) }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ deal.expected_close_date.strftime('%Y-%m-%d') if deal.expected_close_date else 'N/A' }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <div class="flex items-center space-x-2">
+                                    {# Secondary Button: View -> should link to edit #}
+                                    <a href="{{ url_for('edit_deal', deal_id=deal.id) }}" class="bg-white hover:bg-gray-50 text-gray-700 font-medium py-1 px-3 rounded border border-gray-300 shadow-sm inline-flex items-center text-sm">
+                                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 mr-1"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
+                                         View
+                                    </a>
+                                    {# Primary Button: Edit #}
+                                    <a href="{{ url_for('edit_deal', deal_id=deal.id) }}" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-1 px-3 rounded shadow-sm inline-flex items-center text-sm">
+                                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 mr-1"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>
+                                         Edit
+                                    </a>
+                                    {# Danger Button: Delete #}
+                                    <form method="POST" action="{{ url_for('delete_deal', deal_id=deal.id) }}" onsubmit="return confirm('Are you sure you want to delete this deal? This cannot be undone.');" class="inline">
+                                        <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-medium py-1 px-3 rounded shadow-sm inline-flex items-center text-sm">
+                                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 mr-1"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>
+                                             Delete
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="6" class="px-6 py-4 text-center text-sm text-gray-500">No open deals found.</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+        {# Deal Pagination Controls - Using custom param names #}
+        {% if deals_pagination and deals_pagination.total > 0 %}
+            {{ render_pagination(deals_pagination, 'dashboard', [5, 10, 25, 'All'], current_deal_per_page, page_param='deal_page', per_page_param='deal_per_page') }}
+        {% endif %}
+    </div>
+
+</div> {# End Stacking Container #}
+{% endblock %}

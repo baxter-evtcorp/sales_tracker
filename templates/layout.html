@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Sales Tracker{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"> {# Optional: for custom styles #}
+</head>
+<body class="bg-gray-100">
+    <nav class="bg-indigo-600 text-white shadow-md">
+        <div class="container mx-auto px-4">
+            <div class="flex justify-between items-center py-4">
+                <a href="{{ url_for('index') }}" class="text-xl font-bold">Sales Tracker</a>
+                <div>
+                    {% if current_user.is_authenticated %}
+                        <a href="{{ url_for('log_activity') }}" class="px-3 py-2 rounded hover:bg-indigo-700">Log Activity</a>
+                        <a href="{{ url_for('deals') }}" class="px-3 py-2 rounded hover:bg-indigo-700">Manage Deals</a>
+                        <a href="{{ url_for('logout') }}" class="px-3 py-2 rounded hover:bg-indigo-700">Logout ({{ current_user.username }})</a>
+                    {% else %}
+                        <a href="{{ url_for('login') }}" class="px-3 py-2 rounded hover:bg-indigo-700">Login</a>
+                        <a href="{{ url_for('register') }}" class="px-3 py-2 rounded hover:bg-indigo-700">Register</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto px-4 py-8">
+        {# Flash messages #}
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="mb-4">
+                {% for category, message in messages %}
+                    <div class="p-4 rounded border 
+                        {% if category == 'danger' %} bg-red-100 border-red-400 text-red-700
+                        {% elif category == 'success' %} bg-green-100 border-green-400 text-green-700
+                        {% elif category == 'warning' %} bg-yellow-100 border-yellow-400 text-yellow-700
+                        {% else %} bg-blue-100 border-blue-400 text-blue-700 {% endif %}"
+                         role="alert">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        {# Main content block #}
+        {% block content %}
+        {% endblock %}
+    </main>
+
+    <footer class="text-center py-4 text-gray-600 text-sm">
+        &copy; {{ now.year }} Sales Tracker App
+    </footer>
+
+    {# Optional: Add script tags here if needed #}
+    {# <script src="{{ url_for('static', filename='js/main.js') }}"></script> #}
+</body>
+</html>

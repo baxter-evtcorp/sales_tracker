@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: activity_tracker_web
+    ports:
+      - "5000:5000" # Map host port 5000 to container port 5000
+    volumes:
+      # Mount the instance directory to persist the SQLite DB
+      # Use a named volume for better management if needed later
+      - ./instance:/app/instance 
+      # Note: .env file is NOT mounted by default for security.
+      # Secrets should be passed via environment variables.
+    environment:
+      # Pass environment variables from your .env file here
+      # Example (adjust based on your actual .env file):
+      # FLASK_APP: app.py
+      # FLASK_ENV: production # Set to production for Gunicorn
+      # DATABASE_URL: sqlite:////app/instance/site.db # Path inside the container
+      # SECRET_KEY: "your_actual_secret_key_here" # Replace with your key!
+      # SENDGRID_API_KEY: "your_sendgrid_api_key_here" # Replace with your key!
+      # MAIL_FROM_EMAIL: "your_from_email@example.com"
+      
+      # It's often better to use a .env file with compose, like:
+      # env_file:
+      #  - .env
+      # !! IMPORTANT: Ensure your .env file is NOT committed to git !!
+      # !! And adjust DATABASE_URL in .env to use the container path !!
+      # Example .env adjustment:
+      # DATABASE_URL=sqlite:////app/instance/site.db
+      
+      # For demonstration, we'll set a few critical ones directly
+      # YOU MUST REPLACE THESE WITH YOUR ACTUAL VALUES or use env_file
+      FLASK_APP: app.py
+      FLASK_ENV: production
+      DATABASE_URL: sqlite:////app/instance/site.db
+      SECRET_KEY: "change_this_in_production_or_use_env_file"
+      # SENDGRID_API_KEY: "change_this_or_use_env_file"
+      # MAIL_FROM_EMAIL: "change_this@example.com"
+      
+    # Add depends_on if you add a database service later
+    # depends_on:
+    #   - db
+
+# Add database service definition here if needed
+# services:
+#   db:
+#     image: postgres:15
+#     container_name: activity_tracker_db
+#     volumes:
+#       - postgres_data:/var/lib/postgresql/data/
+#     environment:
+#       POSTGRES_DB: your_db_name
+#       POSTGRES_USER: your_db_user
+#       POSTGRES_PASSWORD: your_db_password
+#     ports:
+#       - "5432:5432"
+
+# Define named volumes if needed (e.g., for PostgreSQL)
+# volumes:
+#   postgres_data:
