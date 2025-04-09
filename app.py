@@ -314,8 +314,10 @@ def dashboard():
     # Apply status filter
     if selected_status == "Open":
         deals_query = deals_query.filter(~Deal.stage.in_(['Closed Won', 'Closed Lost']))
-    elif selected_status == "Closed":
-        deals_query = deals_query.filter(Deal.stage.in_(['Closed Won', 'Closed Lost']))
+    elif selected_status == "Closed Won":
+        deals_query = deals_query.filter(Deal.stage == 'Closed Won')
+    elif selected_status == "Closed Lost":
+        deals_query = deals_query.filter(Deal.stage == 'Closed Lost')
     # Else ("All"): no status filter applied
 
     # Order results (e.g., by close date, newest first if available)
@@ -324,9 +326,19 @@ def dashboard():
     # Execute query to get filtered deals
     filtered_deals = deals_query.all()
 
-    # Calculate sums from the filtered list
-    total_revenue = sum(d.revenue or 0.0 for d in filtered_deals)
-    total_gp = sum(d.gross_profit or 0.0 for d in filtered_deals)
+    # Calculate sums from the filtered list, separating lost deals
+    won_open_revenue = 0.0
+    won_open_gp = 0.0
+    lost_revenue = 0.0
+    lost_gp = 0.0
+
+    for deal in filtered_deals:
+        if deal.stage == 'Closed Lost':
+            lost_revenue += deal.revenue or 0.0
+            lost_gp += deal.gross_profit or 0.0
+        else:
+            won_open_revenue += deal.revenue or 0.0
+            won_open_gp += deal.gross_profit or 0.0
 
     return render_template(
         'dashboard.html',
@@ -335,8 +347,11 @@ def dashboard():
         current_act_per_page=act_per_page_str,
         # New Deals data
         filtered_deals=filtered_deals,
-        total_revenue=total_revenue,
-        total_gp=total_gp,
+        # Updated totals
+        won_open_revenue=won_open_revenue,
+        won_open_gp=won_open_gp,
+        lost_revenue=lost_revenue,
+        lost_gp=lost_gp,
         # Filter selections and options for the form
         selected_year=selected_year,
         selected_quarter=selected_quarter,
