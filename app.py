@@ -23,7 +23,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_cors import CORS
 from flask_migrate import Migrate
-from sqlalchemy import MetaData, or_ # Added for dashboard filtering
+from sqlalchemy import MetaData, or_, extract, func # Added for dashboard filtering
 from sqlalchemy.orm import joinedload # Import joinedload
 # Corrected SendGrid imports
 from sendgrid import SendGridAPIClient
@@ -261,11 +261,10 @@ def dashboard():
     # --- Activities Pagination ---
     act_page = request.args.get('act_page', 1, type=int)
     act_per_page_str = request.args.get('act_per_page', '5') # Default 5 for dashboard
-    # Eager load the related Deal object to avoid N+1 queries in the template
     activities_query = Activity.query.options(joinedload(Activity.deal)).filter_by(user_id=current_user.id).order_by(Activity.date.desc())
     if act_per_page_str.lower() == 'all':
         act_per_page = activities_query.count()
-        if act_per_page == 0: act_per_page = 1 # Avoid division by zero if no activities
+        if act_per_page == 0: act_per_page = 1
         activities_pagination = activities_query.paginate(page=1, per_page=act_per_page, error_out=False)
     else:
         try:
@@ -275,33 +274,74 @@ def dashboard():
             act_per_page = 5
         activities_pagination = activities_query.paginate(page=act_page, per_page=act_per_page, error_out=False)
 
-    # --- Deals Pagination ---
-    deal_page = request.args.get('deal_page', 1, type=int)
-    deal_per_page_str = request.args.get('deal_per_page', '5') # Default 5 for dashboard
-    # Filter for deals that are not in 'Closed Won' or 'Closed Lost' stages
-    open_deals_query = Deal.query.filter(
-        Deal.user_id == current_user.id,
-        ~Deal.stage.in_(['Closed Won', 'Closed Lost'])
-    ).order_by(Deal.expected_close_date.asc())
-    if deal_per_page_str.lower() == 'all':
-        deal_per_page = open_deals_query.count()
-        if deal_per_page == 0: deal_per_page = 1
-        deals_pagination = open_deals_query.paginate(page=1, per_page=deal_per_page, error_out=False)
-    else:
+    # --- Deals Filtering & Summation ---
+    current_dt = datetime.now()
+    current_year = current_dt.year
+    selected_year = request.args.get('year', str(current_year), type=str) # Use string for "All" option
+    selected_quarter = request.args.get('quarter', 'All', type=str)
+    selected_status = request.args.get('status', 'Open', type=str) # Default to Open
+
+    # Generate year options for the dropdown
+    year_options = ["All"] + [str(y) for y in range(current_year + 2, current_year - 4, -1)] # e.g., All, 2026, 2025, ..., 2022
+
+    # Base query
+    deals_query = Deal.query.filter(Deal.user_id == current_user.id)
+
+    # Apply date filters
+    if selected_year != "All":
         try:
-            deal_per_page = int(deal_per_page_str)
-            if deal_per_page <= 0:
-                deal_per_page = 5
-        except ValueError:
-            deal_per_page = 5
-        deals_pagination = open_deals_query.paginate(page=deal_page, per_page=deal_per_page, error_out=False)
+            year_int = int(selected_year)
+            # Filter out deals with NULL close date when filtering by date
+            deals_query = deals_query.filter(
+                Deal.expected_close_date.isnot(None),
+                extract('year', Deal.expected_close_date) == year_int
+            )
+            if selected_quarter != "All":
+                 try:
+                     # Quarters are 1-based
+                     quarter_int = int(selected_quarter.replace('Q', ''))
+                     if 1 <= quarter_int <= 4:
+                         deals_query = deals_query.filter(
+                             extract('quarter', Deal.expected_close_date) == quarter_int
+                         )
+                     else:
+                         selected_quarter = "All" # Invalid quarter, reset to All
+                 except (ValueError, TypeError):
+                     selected_quarter = "All" # Invalid quarter format, reset to All
+        except (ValueError, TypeError):
+            selected_year = "All" # Invalid year format, reset to All
+
+    # Apply status filter
+    if selected_status == "Open":
+        deals_query = deals_query.filter(~Deal.stage.in_(['Closed Won', 'Closed Lost']))
+    elif selected_status == "Closed":
+        deals_query = deals_query.filter(Deal.stage.in_(['Closed Won', 'Closed Lost']))
+    # Else ("All"): no status filter applied
+
+    # Order results (e.g., by close date, newest first if available)
+    deals_query = deals_query.order_by(Deal.expected_close_date.desc().nullslast(), Deal.id.desc())
+
+    # Execute query to get filtered deals
+    filtered_deals = deals_query.all()
+
+    # Calculate sums from the filtered list
+    total_revenue = sum(d.revenue or 0.0 for d in filtered_deals)
+    total_gp = sum(d.gross_profit or 0.0 for d in filtered_deals)
 
     return render_template(
-        'dashboard.html', 
+        'dashboard.html',
+        # Activities data (unchanged)
         activities_pagination=activities_pagination,
-        deals_pagination=deals_pagination,
         current_act_per_page=act_per_page_str,
-        current_deal_per_page=deal_per_page_str
+        # New Deals data
+        filtered_deals=filtered_deals,
+        total_revenue=total_revenue,
+        total_gp=total_gp,
+        # Filter selections and options for the form
+        selected_year=selected_year,
+        selected_quarter=selected_quarter,
+        selected_status=selected_status,
+        year_options=year_options
     )
 
 
