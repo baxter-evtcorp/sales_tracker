@@ -158,11 +158,11 @@
     </div>
 
     {# Section 2: Filtered Deals (Previously Open Deals) #}
-    <div class="bg-white shadow overflow-hidden sm:rounded-lg p-6">
+    <div id="deals-section" class="bg-white shadow overflow-hidden sm:rounded-lg p-6"> 
         <h2 class="text-xl font-semibold mb-4">Deals</h2> {# Changed Title #}
 
         {# Filter Form #}
-        <form method="GET" action="{{ url_for('dashboard') }}" class="mb-6 bg-gray-50 p-4 rounded-md border border-gray-200">
+        <form method="GET" action="{{ url_for('dashboard') }}#deals-section" class="mb-6 bg-gray-50 p-4 rounded-md border border-gray-200">
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                 {# Year Filter #}
                 <div>
