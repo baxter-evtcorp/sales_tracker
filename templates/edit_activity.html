@@ -18,6 +18,7 @@
                 <option value="Call" {% if activity.activity_type == 'Call' %}selected{% endif %}>Call</option>
                 <option value="Email" {% if activity.activity_type == 'Email' %}selected{% endif %}>Email</option>
                 <option value="Meeting" {% if activity.activity_type == 'Meeting' %}selected{% endif %}>Meeting</option>
+                <option value="Video Call" {% if activity.activity_type == 'Video Call' %}selected{% endif %}>Video Call</option> {# Added Video Call option #}
                 <option value="LinkedIn" {% if activity.activity_type == 'LinkedIn' %}selected{% endif %}>LinkedIn Message</option>
                 <option value="Other" {% if activity.activity_type == 'Other' %}selected{% endif %}>Other</option>
             </select>
