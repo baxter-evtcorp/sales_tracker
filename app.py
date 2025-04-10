@@ -788,10 +788,10 @@ def email_activity_report():
     <html>
     <head>
         <style>
-            table {{ border-collapse: collapse; width: 100%; }}
-            th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
-            th {{ background-color: #f2f2f2; }}
-            tr:nth-child(even) {{ background-color: #f9f9f9; }}
+            table {{{{ ' border-collapse: collapse; width: 100%; ' }}}}
+            th, td {{{{ ' border: 1px solid #ddd; padding: 8px; text-align: left; ' }}}}
+            th {{{{ ' background-color: #f2f2f2; ' }}}}
+            tr:nth-child(even) {{{{ ' background-color: #f9f9f9; ' }}}}
         </style>
     </head>
     <body>
@@ -814,28 +814,63 @@ def email_activity_report():
 @app.route('/email_deal_report', methods=['POST'])
 @login_required
 def email_deal_report():
-    status = request.form.get('deal_status') # 'open' or 'closed'
-    recipient_email_string = request.form.get('recipient_email', '').strip() # Get recipient emails string
-    closed_stages = ['Closed Won', 'Closed Lost']
-    deals_query = Deal.query.filter(Deal.user_id == current_user.id)
-    report_type_desc = ""
+    from datetime import date, timedelta, datetime
+    import calendar
+    status = request.form.get('deal_status') # 'Open', 'Closed Won', 'Closed Lost', 'All'
+    time_period = request.form.get('time_period', 'all') # 'all', 'current_quarter', 'current_year'
+    recipient_email_string = request.form.get('recipient_email', '').strip()
 
-    if status == 'open':
-        deals_query = deals_query.filter(Deal.stage.notin_(closed_stages))
-        report_type_desc = "Open"
-    elif status == 'closed':
-        deals_query = deals_query.filter(Deal.stage.in_(closed_stages))
-        report_type_desc = "Closed"
+    deals_query = Deal.query.filter(Deal.user_id == current_user.id)
+    status_desc = status # Use the selected status directly
+    time_desc = "All Time"
+    start_date = None
+    end_date = None
+    today = date.today()
+
+    # Calculate date range based on time_period
+    if time_period == 'current_quarter':
+        time_desc = "Current Quarter"
+        current_quarter_first_month = ((today.month - 1) // 3) * 3 + 1
+        start_date = date(today.year, current_quarter_first_month, 1)
+        end_month = current_quarter_first_month + 2
+        end_day = calendar.monthrange(today.year, end_month)[1]
+        end_date = date(today.year, end_month, end_day)
+    elif time_period == 'current_year':
+        time_desc = "Current Fiscal Year"
+        start_date = date(today.year, 1, 1) # Fiscal year starts Jan 1
+        end_date = date(today.year, 12, 31)
+
+    # Apply Status Filter
+    if status == 'Open':
+        deals_query = deals_query.filter(~Deal.stage.in_(['Closed Won', 'Closed Lost']))
+    elif status == 'Closed Won':
+        deals_query = deals_query.filter(Deal.stage == 'Closed Won')
+    elif status == 'Closed Lost':
+        deals_query = deals_query.filter(Deal.stage == 'Closed Lost')
+    elif status == 'All':
+        pass # No status filter needed for 'All'
     else:
         flash('Invalid deal status selected.', 'warning')
         return redirect(url_for('dashboard'))
 
+    # Apply Date Filter if applicable
+    if start_date and end_date:
+        # Filter by expected_close_date being within the range
+        # Handles cases where expected_close_date might be None by excluding them implicitly
+        deals_query = deals_query.filter(
+            Deal.expected_close_date >= start_date,
+            Deal.expected_close_date <= end_date
+        )
+
     deals = deals_query.order_by(Deal.expected_close_date.asc()).all()
 
-    recipient_emails_raw = [email.strip() for email in recipient_email_string.split(',')]
-    recipient_emails = [email for email in recipient_emails_raw if email] # Remove empty strings
+    # Calculate totals for the filtered deals, EXCLUDING 'Closed Lost'
+    total_revenue = sum(d.revenue or 0.0 for d in deals if d.stage != 'Closed Lost')
+    total_gp = sum(d.gross_profit or 0.0 for d in deals if d.stage != 'Closed Lost')
 
-    # Validate emails
+    recipient_emails_raw = [email.strip() for email in recipient_email_string.split(',')]
+    recipient_emails = [email for email in recipient_emails_raw if email]
+
     invalid_emails = [email for email in recipient_emails if '@' not in email]
     if invalid_emails:
         flash(f'Invalid email address(es) found: {", ".join(invalid_emails)}. Please check and try again.', 'warning')
@@ -845,59 +880,104 @@ def email_deal_report():
         flash('Please provide at least one recipient email address.', 'warning')
         return redirect(url_for('dashboard'))
 
-    subject = f"{report_type_desc} Deal Report"
+    report_desc = f"{status_desc} ({time_desc})"
+    subject = f"{report_desc} Deals Report"
 
     # Generate Plain Text Body
-    body = f"{report_type_desc} Deal Report for {current_user.email}\n\n"
+    body = f"{report_desc} Deals Report for {current_user.email}\n\n"
     if deals:
         for deal in deals:
             close_date = deal.expected_close_date.strftime('%Y-%m-%d') if deal.expected_close_date else 'N/A'
             revenue_str = f"${(deal.revenue or 0.0):,.2f}"
             gross_profit_str = f"${(deal.gross_profit or 0.0):,.2f}"
-            body += f"- {deal.name} ({deal.stage}): Revenue {revenue_str}, Gross Profit {gross_profit_str}, Close Date: {close_date}\n"
+            lost_indicator = " (Lost)" if deal.stage == 'Closed Lost' else ""
+            body += f"- {deal.name} ({deal.stage}{lost_indicator}): Revenue {revenue_str}, Gross Profit {gross_profit_str}, Close Date: {close_date}\n"
+        # Add totals to plain text body (reflects exclusion of lost deals)
+        body += f"\nTotal Revenue (excluding Lost): ${total_revenue:,.2f}"
+        body += f"\nTotal Gross Profit (excluding Lost): ${total_gp:,.2f}"
     else:
-        body += f"No {status} deals found.\n"
+        body += f"No {status} deals found for {time_desc}.\n"
 
-    # Generate HTML Body with a Table
+    # Generate HTML Body with a Table and Totals Footer
     html_table_rows = ""
     if deals:
         for deal in deals:
+            is_lost = deal.stage == 'Closed Lost'
+            cell_style = "style='border: 1px solid #ddd; padding: 8px; text-decoration: line-through;'" if is_lost else "style='border: 1px solid #ddd; padding: 8px;'"
+            cell_style_numeric = "style='border: 1px solid #ddd; padding: 8px; text-align: right; text-decoration: line-through;'" if is_lost else "style='border: 1px solid #ddd; padding: 8px; text-align: right;'"
+
             close_date_str = deal.expected_close_date.strftime("%Y-%m-%d") if deal.expected_close_date else "N/A"
             revenue_html = f"${(deal.revenue or 0.0):,.2f}"
             gross_profit_html = f"${(deal.gross_profit or 0.0):,.2f}"
             html_table_rows += f"""
             <tr>
-                <td style='border: 1px solid #ddd; padding: 8px;'>{deal.name}</td>
-                <td style='border: 1px solid #ddd; padding: 8px;'>{deal.stage}</td>
-                <td style='border: 1px solid #ddd; padding: 8px; text-align: right;'>{revenue_html}</td>
-                <td style='border: 1px solid #ddd; padding: 8px; text-align: right;'>{gross_profit_html}</td>
-                <td style='border: 1px solid #ddd; padding: 8px;'>{close_date_str}</td>
+                <td {cell_style}>{deal.name}</td>
+                <td {cell_style}>{deal.stage}</td>
+                <td {cell_style_numeric}>{revenue_html}</td>
+                <td {cell_style_numeric}>{gross_profit_html}</td>
+                <td {cell_style}>{close_date_str}</td>
             </tr>
             """
 
+    # Add Totals Row for HTML
+    totals_row_html = ""
+    if deals:
+        formatted_total_revenue = f"${total_revenue:,.2f}"
+        formatted_total_gp = f"${total_gp:,.2f}"
+        # Using implicit string concatenation with f-strings
+        totals_row_html = (
+            f"<tfoot style='font-weight: bold; background-color: #f2f2f2;'>"
+            f"<tr>"
+            f"<td style='border: 1px solid #ddd; padding: 8px;' colspan='2'>Totals ({status_desc}, excluding Lost):</td>" 
+            f"<td style='border: 1px solid #ddd; padding: 8px; text-align: right;'>{formatted_total_revenue}</td>"
+            f"<td style='border: 1px solid #ddd; padding: 8px; text-align: right;'>{formatted_total_gp}</td>"
+            f"<td style='border: 1px solid #ddd; padding: 8px;'></td>"
+            f"</tr>"
+            f"</tfoot>"
+        )
+
+    # Generate the table content or 'no deals' message
+    table_html_content = ""
+    if deals:
+        # Construct the table with header, body, and footer
+        table_html_content = f"""
+        <table>
+            <thead>
+                <tr><th>Name</th><th>Stage</th><th>Revenue</th><th>Gross Profit</th><th>Close Date</th></tr>
+            </thead>
+            <tbody>
+                {html_table_rows}
+            </tbody>
+            {totals_row_html}
+        </table>
+        """
+    else:
+        table_html_content = f"<p>No {status} deals found for {time_desc}.</p>"
+
+    # Final HTML Body construction
     html_body = f"""
     <html>
     <head>
         <style>
-            table {{ border-collapse: collapse; width: 100%; }}
-            th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
-            th {{ background-color: #f2f2f2; }}
-            tr:nth-child(even) {{ background-color: #f9f9f9; }}
+            table {{{{ ' border-collapse: collapse; width: 100%; ' }}}}
+            th, td {{{{ ' border: 1px solid #ddd; padding: 8px; text-align: left; ' }}}}
+            th {{{{ ' background-color: #f2f2f2; ' }}}}
+            tr:nth-child(even) {{{{ ' background-color: #f9f9f9; ' }}}}
+            tfoot td {{{{ ' border-top: 2px solid #aaa; ' }}}}
         </style>
     </head>
     <body>
-        <h2>{report_type_desc} Deal Report for {current_user.email}</h2>
-        {'<table><thead><tr><th>Name</th><th>Stage</th><th>Revenue</th><th>Gross Profit</th><th>Close Date</th></tr></thead><tbody>' + html_table_rows + '</tbody></table>' if deals else f'<p>No {status} deals found.</p>'}
+        <h2>{report_desc} Deals Report for {current_user.email}</h2>
+        {table_html_content}
     </body>
     </html>
     """
 
-    # Use the list of recipient_emails
     recipient_display_str = ", ".join(recipient_emails)
-    if send_email(to=recipient_emails, subject=subject, body=body, html_body=html_body): # Pass html_body
-        flash(f'{report_type_desc} deal report sent to {recipient_display_str}.', 'success')
+    if send_email(to=recipient_emails, subject=subject, body=body, html_body=html_body):
+        flash(f'{report_desc} Deals report sent to {recipient_display_str}.', 'success')
     else:
-        flash(f'Failed to send {report_type_desc} deal report to {recipient_display_str}.', 'danger')
+        flash(f'Failed to send {report_desc} Deals report to {recipient_display_str}.', 'danger')
 
     return redirect(url_for('dashboard'))
 

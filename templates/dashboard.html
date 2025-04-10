@@ -42,14 +42,40 @@
             <fieldset class="space-y-2">
                 <legend class="sr-only">Select deal status</legend>
                 <div class="flex items-center">
-                    <input id="deal_open" name="deal_status" type="radio" value="open" checked class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300">
+                    <input id="deal_open" name="deal_status" type="radio" value="Open" checked class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300">
                     <label for="deal_open" class="ml-3 block text-sm font-medium text-gray-700">Open Deals</label>
                 </div>
                 <div class="flex items-center">
-                    <input id="deal_closed" name="deal_status" type="radio" value="closed" class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300">
-                    <label for="deal_closed" class="ml-3 block text-sm font-medium text-gray-700">Closed Deals</label>
+                    <input id="deal_closed_won" name="deal_status" type="radio" value="Closed Won" class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300">
+                    <label for="deal_closed_won" class="ml-3 block text-sm font-medium text-gray-700">Closed Won Deals</label>
+                </div>
+                <div class="flex items-center">
+                    <input id="deal_closed_lost" name="deal_status" type="radio" value="Closed Lost" class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300">
+                    <label for="deal_closed_lost" class="ml-3 block text-sm font-medium text-gray-700">Closed Lost Deals</label>
+                </div>
+                <div class="flex items-center">
+                    <input id="deal_all" name="deal_status" type="radio" value="All" class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300">
+                    <label for="deal_all" class="ml-3 block text-sm font-medium text-gray-700">All Deals</label>
                 </div>
             </fieldset>
+
+            {# Add Time Period Filters #}
+            <fieldset class="mt-4 space-y-2">
+                <legend class="text-sm font-medium text-gray-900">Select Time Period</legend>
+                <div class="flex items-center">
+                    <input id="time_all" name="time_period" type="radio" value="all" checked class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300">
+                    <label for="time_all" class="ml-3 block text-sm font-medium text-gray-700">All Time</label>
+                </div>
+                <div class="flex items-center">
+                    <input id="time_current_quarter" name="time_period" type="radio" value="current_quarter" class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300">
+                    <label for="time_current_quarter" class="ml-3 block text-sm font-medium text-gray-700">Current Quarter</label>
+                </div>
+                <div class="flex items-center">
+                    <input id="time_current_year" name="time_period" type="radio" value="current_year" class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300">
+                    <label for="time_current_year" class="ml-3 block text-sm font-medium text-gray-700">Current Fiscal Year</label>
+                </div>
+            </fieldset>
+
             <div class="mt-4">
                 <label for="deal_recipient_email" class="block text-sm font-medium text-gray-700">Send To:</label>
                 <input type="text" name="recipient_email" id="deal_recipient_email" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-teal-500 focus:border-teal-500 sm:text-sm" placeholder="recipient1@example.com, recipient2@example.com">
