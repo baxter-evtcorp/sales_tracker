@@ -100,7 +100,7 @@
                     <tr>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ activity.activity_type }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ activity.date.strftime('%Y-%m-%d') }}</td>
-                        <td class="px-6 py-4 text-sm text-gray-500 break-words">{{ activity.notes }}</td>
+                        <td class="px-6 py-4 text-sm text-gray-500 break-words">{{ activity.description }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ activity.deal.name if activity.deal else 'N/A' }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ activity.contact_name if activity.contact_name else 'N/A' }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ activity.company_name if activity.company_name else 'N/A' }}</td>
