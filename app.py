@@ -379,8 +379,8 @@ def index():
         # If logged in, redirect to the main dashboard
         return redirect(url_for('dashboard'))
     else:
-        # If logged out, show the public landing page (index.html)
-        return render_template('index.html')
+        # If logged out, show the public landing page (public_index.html)
+        return render_template('public_index.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -1170,10 +1170,10 @@ def email_deal_report():
 @app.route('/manager_dashboard')
 @login_required
 def manager_dashboard():
-    # Ensure only managers can access
-    if current_user.role != 'manager':
+    # Ensure only managers or admins can access
+    if current_user.role not in ['manager', 'admin']:
         flash('You do not have permission to access the Manager Dashboard.', 'danger')
-        return redirect(url_for('dashboard')) # Redirect non-managers
+        return redirect(url_for('dashboard')) # Redirect non-managers/admins
 
     # --- Data Fetching (Manager View) --- # 
     # TODO: Implement filtering by user later
