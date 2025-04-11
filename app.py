@@ -886,14 +886,43 @@ def delete_deal(deal_id):
     flash('Deal deleted successfully.', 'success')
     return redirect(url_for('dashboard')) # Redirect to dashboard list after deletion
 
+# --- View Deal Route (Read-Only) ---
+@app.route('/deal/<int:deal_id>/view')
+@login_required
+def view_deal(deal_id):
+    # Ensure only managers or admins can access this view
+    if current_user.role not in ['manager', 'admin']:
+        flash('You do not have permission to view this page.', 'danger')
+        # Redirect to user's own dashboard if they don't have permission
+        return redirect(url_for('dashboard'))
 
-# --- CLI Command for DB Init ---
-@app.cli.command('init-db')
-def init_db():
-    """Creates the database tables."""
-    with app.app_context():
-        db.create_all()
-    print('Initialized the database.')
+    deal = Deal.query.get_or_404(deal_id)
+    # Optionally, you might want to verify if the manager should only see deals
+    # belonging to their team, but for now, allow viewing any deal if manager/admin.
+
+    # Fetch associated activities
+    activities = Activity.query.filter_by(deal_id=deal.id).order_by(Activity.date.desc()).all()
+
+    return render_template('view_deal.html',
+                           title=f"View Deal: {deal.company_name}",
+                           deal=deal,
+                           activities=activities)
+
+# --- View Activity Route (Read-Only) ---
+@app.route('/activity/<int:activity_id>/view')
+@login_required
+def view_activity(activity_id):
+    # Ensure only managers or admins can access this view
+    if current_user.role not in ['manager', 'admin']:
+        flash('You do not have permission to view this page.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    activity = Activity.query.get_or_404(activity_id)
+    # Similar to deals, allow viewing any activity if manager/admin for now.
+
+    return render_template('view_activity.html',
+                           title=f"View Activity: {activity.activity_type} on {activity.date.strftime('%Y-%m-%d')}",
+                           activity=activity)
 
 # --- Email Report Routes ---
 
