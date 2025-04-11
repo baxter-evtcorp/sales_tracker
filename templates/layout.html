@@ -16,7 +16,11 @@
                     {% if current_user.is_authenticated %}
                         <a href="{{ url_for('log_activity') }}" class="px-3 py-2 rounded hover:bg-indigo-700">Log Activity</a>
                         <a href="{{ url_for('deals') }}" class="px-3 py-2 rounded hover:bg-indigo-700">Manage Deals</a>
-                        <a href="{{ url_for('logout') }}" class="px-3 py-2 rounded hover:bg-indigo-700">Logout ({{ current_user.username }})</a>
+                        {# Add Manager Dashboard link only if user is manager #}
+                        {% if current_user.role == 'manager' %}
+                            <a href="{{ url_for('manager_dashboard') }}" class="px-3 py-2 rounded hover:bg-indigo-700">Manager Dashboard</a>
+                        {% endif %}
+                        <a href="{{ url_for('logout') }}" class="px-3 py-2 rounded hover:bg-indigo-700">Logout ({{ current_user.email }})</a>
                     {% else %}
                         <a href="{{ url_for('login') }}" class="px-3 py-2 rounded hover:bg-indigo-700">Login</a>
                         <a href="{{ url_for('register') }}" class="px-3 py-2 rounded hover:bg-indigo-700">Register</a>

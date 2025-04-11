@@ -1,37 +1,38 @@
 from dotenv import load_dotenv
 import os
-
-# Explicitly load .env from the project root and force override
-dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
-if os.path.exists(dotenv_path):
-    print(f"--- DEBUG: Loading .env file from: {dotenv_path} ---")
-    load_dotenv(dotenv_path=dotenv_path, override=True)
-    # === IMMEDIATE CHECK AFTER LOAD_DOTENV ===
-    print(f"*** CHECKING os.environ IMMEDIATELY ***")
-    print(f"*** os.environ API Key: {os.environ.get('SENDGRID_API_KEY')} ***")
-    print(f"*** os.environ From Email: {os.environ.get('MAIL_FROM_EMAIL')} ***")
-    print(f"*************************************")
-else:
-    print(f"--- DEBUG: .env file not found at: {dotenv_path} ---")
-
-
-import bcrypt
+import datetime # Added import
 from datetime import datetime, timedelta, timezone, date
 import calendar # Added for month range
-from flask import Flask, request, jsonify, render_template, redirect, url_for, flash, current_app # Added current_app
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, abort # Added flash, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user # current_user is here
 from flask_cors import CORS
 from flask_migrate import Migrate
 from sqlalchemy import MetaData, or_, extract, func # Added for dashboard filtering
 from sqlalchemy.orm import joinedload # Import joinedload
 # Corrected SendGrid imports
 from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail, Email, To, Content, MimeType
+from sendgrid.helpers.mail import Mail, Email as SendGridEmail, To, Content, MimeType
+from flask_admin import Admin
+from flask_admin.contrib.sqla import ModelView
+from flask_admin import AdminIndexView # Import AdminIndexView
+from flask_admin.menu import MenuLink # Import MenuLink
+from wtforms import Form # Added Form
+from wtforms.fields import PasswordField, StringField, SelectField # Added SelectField
+import click  # Added for CLI
+import bcrypt # Added for password hashing
+import random # Added for seeding
+from flask import url_for, redirect, request # Added for redirect
+
 
 # --- App Initialization ---
 app = Flask(__name__, instance_relative_config=True)
 app.jinja_env.add_extension('jinja2.ext.do') # Enable the 'do' extension
+
+# Context processor to inject 'now' for templates
+@app.context_processor
+def inject_now():
+    return {'now': datetime.utcnow()}
 
 # --- Configuration Loading ---
 # Load .env file first
@@ -72,6 +73,42 @@ print(f"--- DEBUG: Flask Config API Key: {app.config.get('SENDGRID_API_KEY')} --
 print(f"--- DEBUG: Flask Config From Email: {app.config.get('MAIL_FROM_EMAIL')} ---")
 
 
+# --- Password Hashing --- 
+def set_password(password):
+    password_bytes = password.encode('utf-8')
+    salt = bcrypt.gensalt()
+    hashed_password = bcrypt.hashpw(password_bytes, salt)
+    return hashed_password.decode('utf-8')
+
+def check_password(stored_hash, provided_password):
+    stored_hash_bytes = stored_hash.encode('utf-8')
+    provided_password_bytes = provided_password.encode('utf-8')
+    return bcrypt.checkpw(provided_password_bytes, stored_hash_bytes)
+
+# --- Email Helper Function (SendGrid) ---
+def send_email(to, subject, body, html_body=None):
+    api_key = app.config.get('SENDGRID_API_KEY')
+    from_email = app.config.get('MAIL_FROM_EMAIL')
+    if not api_key or not from_email:
+        print("Error: Email configuration missing.")
+        return False
+    message = Mail(
+        from_email=from_email,
+        to_emails=to,
+        subject=subject,
+        plain_text_content=body
+    )
+    if html_body:
+        message.add_content(Content(mime_type='text/html', content=html_body))
+    try:
+        sg = SendGridAPIClient(api_key)
+        response = sg.send(message)
+        print(f"Email sent! Status Code: {response.status_code}")
+        return True
+    except Exception as e:
+        print(f"Error sending email: {e}")
+        return False
+
 # --- Database Setup ---
 db = SQLAlchemy(app)
 migrate = Migrate(app, db) # Initialize Flask-Migrate
@@ -94,58 +131,71 @@ metadata = MetaData(naming_convention=convention)
 CORS(app, resources={r"/api/*": {"origins": "*"}}) # Basic CORS for API routes
 # Pass metadata to SQLAlchemy for naming convention
 
-# --- Email Helper Function (SendGrid) ---
-def send_email(to, subject, body, html_body=None):
-    print(f"--- DEBUG: Inside send_email (using os.environ again) ---")
-    # Revert to using os.environ for now
-    api_key = os.environ.get('SENDGRID_API_KEY')
-    from_email = os.environ.get('MAIL_FROM_EMAIL')
-    print(f"--- DEBUG: Retrieved API Key from os.environ: {api_key} ---")
-    print(f"--- DEBUG: Retrieved From Email from os.environ: {from_email} ---")
-    if not api_key or not from_email:
-        flash('Email configuration missing (SENDGRID_API_KEY or MAIL_FROM_EMAIL in os.environ). Cannot send email.', 'danger')
-        print("Error: Email configuration missing (checked os.environ).")
-        return False
+# Custom Admin Index View with Role Check
+class MyAdminIndexView(AdminIndexView):
+    def is_accessible(self):
+        return current_user.is_authenticated and hasattr(current_user, 'role') and current_user.role == 'admin'
 
-    # Construct message with plain text
-    message = Mail(
-        from_email=from_email,
-        to_emails=to,
-        subject=subject,
-        plain_text_content=body # Always include plain text
-    )
+    def inaccessible_callback(self, name, **kwargs):
+        if not current_user.is_authenticated:
+            return redirect(url_for('login', next=request.url))
+        else:
+            return redirect(url_for('index'))
 
-    # Add HTML content if provided
-    if html_body:
-        # Use add_content with MimeType.html
-        message.add_content(Content(mime_type=MimeType.html, content=html_body))
+# Initialize Admin with custom index view
+admin = Admin(app, name='Activity Tracker Admin', index_view=MyAdminIndexView())
 
-    try:
-        sg = SendGridAPIClient(api_key)
-        response = sg.send(message)
-        print(f"Email sent! Status Code: {response.status_code}") # Log success
-        return True
-    except Exception as e:
-        flash(f'An error occurred while sending the email: {e}', 'danger')
-        print(f"Error sending email: {e}") # Log error
-        return False
+# Base Admin View with Role Check
+class AdminModelView(ModelView):
+    def is_accessible(self):
+        return current_user.is_authenticated and hasattr(current_user, 'role') and current_user.role == 'admin'
+
+    def inaccessible_callback(self, name, **kwargs):
+        if not current_user.is_authenticated:
+            return redirect(url_for('login', next=request.url))
+        else:
+            return redirect(url_for('index'))
+
+# Custom Form for Editing Users
+class UserEditForm(Form):
+    email = StringField('Email')
+    # Use SelectField for role
+    role = SelectField('Role', choices=[
+        ('member', 'Member'),
+        ('manager', 'Manager'),
+        ('admin', 'Admin')
+    ])
+    password = PasswordField('New Password (optional)')
+
+# Specific view for User model using the custom form
+class UserAdminView(AdminModelView):
+    form = UserEditForm
+    can_create = False # Disable creation
+
+    def on_model_change(self, form, model, is_created):
+        # Let Flask-Admin handle standard field population first
+        super(UserAdminView, self).on_model_change(form, model, is_created)
+
+        # Hash password ONLY if a new one was provided in the form
+        if form.password.data:
+            model.set_password(form.password.data) # Use the User model's method
+
+        # No need to manually set email/role, super() should handle it with the custom form
+        # model.email = form.email.data
+        # model.role = form.role.data
 
 # --- Models ---
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
-    # Relationships
-    activities = db.relationship('Activity', backref='author', lazy='dynamic') # Use lazy='dynamic' for potential filtering
+    role = db.Column(db.String(20), nullable=False, default='member', index=True)
+    activities = db.relationship('Activity', backref='author', lazy='dynamic')
     deals = db.relationship('Deal', backref='owner', lazy='dynamic')
 
+    # Add set_password method to User model
     def set_password(self, password):
-        # Hash password using bcrypt
-        self.password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-
-    def check_password(self, password):
-        # Check hashed password
-        return bcrypt.checkpw(password.encode('utf-8'), self.password_hash.encode('utf-8'))
+        self.password_hash = set_password(password)
 
 class Deal(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -155,6 +205,9 @@ class Deal(db.Model):
     gross_profit = db.Column(db.Float, nullable=True, default=0.0)
     expected_close_date = db.Column(db.Date, nullable=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    contact_name = db.Column(db.String(100), nullable=True) # Added
+    contact_email = db.Column(db.String(120), nullable=True) # Added
+    # Relationships
     activities = db.relationship('Activity', backref='deal', lazy='dynamic')
 
     # MEDDPIC Fields
@@ -182,10 +235,141 @@ class Activity(db.Model):
     def __repr__(self):
         return f'<Activity {self.activity_type} on {self.date}>'
 
+# Add Flask-Admin views AFTER model definitions
+admin.add_view(UserAdminView(User, db.session))
+admin.add_view(AdminModelView(Deal, db.session))
+admin.add_view(AdminModelView(Activity, db.session))
+
+# Add a link back to the main application
+admin.add_link(MenuLink(name='Back to App', category='', url='/'))
+
 # --- Flask-Login Loader ---
 @login_manager.user_loader
 def load_user(user_id):
     return db.session.get(User, int(user_id)) # Use db.session.get for newer Flask-SQLAlchemy
+
+# --- CLI Commands --- #
+
+@app.cli.command('add-user')
+@click.argument('email')
+@click.argument('password')
+@click.option('--role', default='member', help='User role (e.g., member, manager)')
+def add_user(email, password, role):
+    """Adds a new user to the database."""
+    existing_user = User.query.filter_by(email=email).first()
+    if existing_user:
+        print(f'Error: User with email {email} already exists.')
+        return
+
+    hashed_password = set_password(password) # Use the helper function
+    new_user = User(email=email, password_hash=hashed_password, role=role)
+    db.session.add(new_user)
+    try:
+        db.session.commit()
+        print(f"User {email} added successfully with role {role}!")
+    except Exception as e:
+        db.session.rollback()
+        print(f'Error adding user: {e}')
+
+# Command to update user role
+@app.cli.command('set-role')
+@click.argument('email')
+@click.argument('role')
+def set_role(email, role):
+    """Updates the role for an existing user."""
+    # Debugging: Print config info like other CLI commands
+    print(f"---> [DB Config] Using DATABASE_URL from environment")
+    print(f"---> [Flask App] FINAL Database URI set to: {app.config['SQLALCHEMY_DATABASE_URI']}")
+    print(f"--- DEBUG: Flask Config API Key: {app.config.get('SENDGRID_API_KEY', 'Not Set')} ---")
+    print(f"--- DEBUG: Flask Config From Email: {app.config.get('MAIL_FROM_EMAIL', 'Not Set')} ---")
+
+    user = User.query.filter_by(email=email).first()
+    if user:
+        # Validate the role
+        valid_roles = ['admin', 'manager', 'member']
+        if role not in valid_roles:
+            print(f"Error: Invalid role '{role}'. Must be one of {valid_roles}.")
+            return
+        user.role = role
+        db.session.commit()
+        print(f"User {email}'s role updated to {role}.")
+    else:
+        print(f"Error: User with email {email} not found.")
+
+@app.cli.command('seed-db')
+def seed_db():
+    """Populates the database with sample deals and activities."""
+    print('Seeding database...')
+
+    # Find users
+    user_baxter = User.query.filter_by(email='bconley@evtcorp.com').first()
+    user_member = User.query.filter_by(email='test.member@evtcorp.com').first()
+    user_manager = User.query.filter_by(email='test.manager@evtcorp.com').first()
+
+    if not all([user_baxter, user_member, user_manager]):
+        print('Error: One or more required users (bconley, test.member, test.manager) not found. Run add-user first.')
+        return
+
+    users = [user_baxter, user_member, user_manager]
+
+    # Clear existing test data (optional, but good for repeatable seeding)
+    # Be CAREFUL with this in production!
+    print('Deleting existing test Activities and Deals...')
+    Activity.query.delete()
+    Deal.query.delete()
+    db.session.commit()
+    print('Existing test data deleted.')
+
+    # Sample Deals
+    deals_data = [
+        {'name': 'Alpha Project', 'stage': 'Prospecting', 'revenue': 50000, 'contact_name': 'Alice Alpha', 'contact_email': 'alice@alpha.com', 'owner': user_baxter}, 
+        {'name': 'Beta Initiative', 'stage': 'Qualification', 'revenue': 120000, 'contact_name': 'Bob Beta', 'contact_email': 'bob@beta.com', 'owner': user_member}, 
+        {'name': 'Gamma Launch', 'stage': 'Proposal', 'revenue': 75000, 'contact_name': 'Charlie Gamma', 'contact_email': 'charlie@gamma.com', 'owner': user_baxter}, 
+        {'name': 'Delta Rollout', 'stage': 'Negotiation', 'revenue': 250000, 'contact_name': 'Diana Delta', 'contact_email': 'diana@delta.com', 'owner': user_manager}, 
+        {'name': 'Epsilon Upgrade', 'stage': 'Closed Won', 'revenue': 90000, 'contact_name': 'Evan Epsilon', 'contact_email': 'evan@epsilon.com', 'owner': user_member}, 
+        {'name': 'Zeta Opportunity', 'stage': 'Closed Lost', 'revenue': 30000, 'contact_name': 'Zoe Zeta', 'contact_email': 'zoe@zeta.com', 'owner': user_baxter}, 
+    ]
+
+    created_deals = []
+    print('Creating Deals...')
+    for data in deals_data:
+        deal = Deal(**data)
+        db.session.add(deal)
+        created_deals.append(deal)
+    
+    try:
+        db.session.commit()
+        print(f'{len(created_deals)} Deals created.')
+    except Exception as e:
+        db.session.rollback()
+        print(f'Error creating deals: {e}')
+        return # Stop if deals fail
+
+    # Sample Activities
+    activities_data = [
+        {'activity_type': 'Call', 'description': 'Initial contact call with Alice.', 'date': datetime.utcnow() - timedelta(days=10), 'author': user_baxter, 'deal': created_deals[0]}, 
+        {'activity_type': 'Email', 'description': 'Sent follow-up email to Bob.', 'date': datetime.utcnow() - timedelta(days=8), 'author': user_member, 'deal': created_deals[1]}, 
+        {'activity_type': 'Meeting', 'description': 'Proposal presentation with Charlie.', 'date': datetime.utcnow() - timedelta(days=5), 'author': user_baxter, 'deal': created_deals[2]}, 
+        {'activity_type': 'Call', 'description': 'Negotiation call with Diana.', 'date': datetime.utcnow() - timedelta(days=3), 'author': user_manager, 'deal': created_deals[3]}, 
+        {'activity_type': 'Email', 'description': 'Sent contract to Evan.', 'date': datetime.utcnow() - timedelta(days=2), 'author': user_member, 'deal': created_deals[4]}, 
+        {'activity_type': 'Meeting', 'description': 'Discussed Beta requirements internally.', 'date': datetime.utcnow() - timedelta(days=7), 'author': user_member, 'deal': created_deals[1]}, 
+        {'activity_type': 'Call', 'description': 'Quick check-in call with Alice.', 'date': datetime.utcnow() - timedelta(days=1), 'author': user_baxter, 'deal': created_deals[0]}, 
+        {'activity_type': 'Email', 'description': 'Followed up on proposal for Gamma.', 'date': datetime.utcnow() - timedelta(days=1), 'author': user_baxter, 'deal': created_deals[2]}, 
+    ]
+
+    print('Creating Activities...')
+    for data in activities_data:
+        activity = Activity(**data)
+        db.session.add(activity)
+
+    try:
+        db.session.commit()
+        print(f'{len(activities_data)} Activities created.')
+        print('Database seeding complete.')
+    except Exception as e:
+        db.session.rollback()
+        print(f'Error creating activities: {e}')
+
 
 # --- Routes ---
 @app.route('/')
@@ -208,7 +392,7 @@ def login():
         password = request.form.get('password')
         user = User.query.filter_by(email=email).first()
 
-        if user and user.check_password(password):
+        if user and check_password(user.password_hash, password):
             login_user(user) # Log the user in
             flash('Logged in successfully!', 'success')
             return redirect(url_for('index'))
@@ -237,8 +421,8 @@ def register():
             return redirect(url_for('register'))
 
         # Create new user
-        new_user = User(email=email)
-        new_user.set_password(password)
+        hashed_password = set_password(password)
+        new_user = User(email=email, password_hash=hashed_password)
         db.session.add(new_user)
         db.session.commit()
 
@@ -980,6 +1164,51 @@ def email_deal_report():
         flash(f'Failed to send {report_desc} Deals report to {recipient_display_str}.', 'danger')
 
     return redirect(url_for('dashboard'))
+
+
+# --- Manager Dashboard Route --- #
+@app.route('/manager_dashboard')
+@login_required
+def manager_dashboard():
+    # Ensure only managers can access
+    if current_user.role != 'manager':
+        flash('You do not have permission to access the Manager Dashboard.', 'danger')
+        return redirect(url_for('dashboard')) # Redirect non-managers
+
+    # --- Data Fetching (Manager View) --- # 
+    # TODO: Implement filtering by user later
+    selected_user_id = request.args.get('user_id', type=int)
+    selected_user = None
+    if selected_user_id:
+        selected_user = User.query.get(selected_user_id)
+        # Add check if selected_user exists?
+    
+    # Base queries
+    activities_query = Activity.query
+    deals_query = Deal.query
+    
+    # Apply user filter if a user is selected
+    if selected_user:
+        activities_query = activities_query.filter(Activity.user_id == selected_user.id)
+        deals_query = deals_query.filter(Deal.user_id == selected_user.id)
+
+    # Get all users for the filter dropdown
+    all_users = User.query.order_by(User.email).all()
+
+    # Apply sorting (similar to regular dashboard, maybe simplified)
+    activities_query = activities_query.order_by(Activity.date.desc())
+    deals_query = deals_query.order_by(Deal.id.desc()) # Sort by ID descending
+
+    # Execute queries (simple .all() for now, add pagination later)
+    all_activities = activities_query.all()
+    all_deals = deals_query.all()
+    
+    return render_template('manager_dashboard.html',
+                           activities=all_activities,
+                           deals=all_deals,
+                           all_users=all_users, # Pass users for filter dropdown
+                           selected_user=selected_user, # Pass selected user for filter state
+                           title="Manager Dashboard")
 
 
 # --- Main Execution ---
