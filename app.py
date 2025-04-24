@@ -1069,10 +1069,15 @@ def edit_deal(deal_id):
             db.session.add(customer)
             db.session.flush() # Ensure customer gets an ID before association
         
-        # Populate deal object from form data
-        # populate_obj will now skip 'customer_name_input' as it doesn't match a deal attribute
-        # It will correctly populate name, revenue, stage, etc.
-        deal_form.populate_obj(deal) 
+        # Populate deal object from form data manually, skipping specific fields
+        for name, field in deal_form._fields.items():
+            # Skip fields handled manually or not part of the Deal model attributes
+            if name not in ['customer_name_input', 'submit_deal_changes', 'csrf_token']:
+                 # Check if the deal object has this attribute before setting
+                 # This prevents errors if the form has fields not on the model
+                 if hasattr(deal, name):
+                    field.populate_obj(deal, name)
+
         # Manually assign customer_id after lookup/creation
         deal.customer_id = customer.id 
         # Ensure gross_profit is updated (populate_obj should handle this if names match)
