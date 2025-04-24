@@ -23,6 +23,12 @@ import click  # Added for CLI
 import bcrypt # Added for password hashing
 import random # Added for seeding
 from flask import url_for, redirect, request # Added for redirect
+from werkzeug.utils import secure_filename # Added for file uploads
+import enum # Added for AttachmentType
+from flask_wtf import FlaskForm # Added for attachment form
+from wtforms import FileField, SelectField as WTSelectField, SubmitField # Added for attachment form fields
+from wtforms.validators import DataRequired # Added for attachment form validators
+from flask import send_from_directory # Added for serving files
 
 
 # --- App Initialization ---
@@ -60,6 +66,12 @@ def get_database_uri():
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'fallback_secret_key_only_for_dev')
 app.config['SQLALCHEMY_DATABASE_URI'] = get_database_uri()
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['UPLOAD_FOLDER'] = os.path.join(app.instance_path, 'uploads', 'deals') # Define upload folder
+
+# Ensure upload folder exists
+if not os.path.exists(app.config['UPLOAD_FOLDER']):
+    os.makedirs(app.config['UPLOAD_FOLDER'])
+    print(f"---> [App Setup] Created upload folder: {app.config['UPLOAD_FOLDER']}")
 
 # Print final DB URI being used
 print(f"---> [Flask App] FINAL Database URI set to: {app.config['SQLALCHEMY_DATABASE_URI']}")
@@ -167,6 +179,44 @@ class UserEditForm(Form):
     ])
     password = PasswordField('New Password (optional)')
 
+# Enum for Attachment Types
+class AttachmentType(enum.Enum):
+    MANUFACTURER_QUOTE = 'Manufacturer Quote'
+    CUSTOMER_QUOTE = 'Customer Quote'
+    CUSTOMER_PO = 'Customer PO'
+    EVT_PO = 'EVT PO'
+
+    @classmethod
+    def choices(cls):
+        return [(choice.name, choice.value) for choice in cls]
+
+    @classmethod
+    def coerce(cls, item):
+        # If item is already an instance of the enum, return it directly
+        if isinstance(item, cls):
+            return item
+        # Otherwise, assume item is the NAME (e.g., 'MANUFACTURER_QUOTE') 
+        # and look up the member by name.
+        try:
+            return cls[item]
+        except KeyError:
+            # Optionally, try by value if lookup by name fails, although
+            # with how SelectField uses choices, name lookup is expected.
+            # If both fail, raise an error.
+            raise ValueError(f"Invalid value for AttachmentType: {item!r}")
+
+    def __str__(self):
+        return self.value
+
+# Form for adding Deal Attachments
+class DealAttachmentForm(FlaskForm):
+    attachment_file = FileField('Attach File', validators=[DataRequired()])
+    attachment_type = WTSelectField('File Type', 
+                                    choices=AttachmentType.choices(), 
+                                    coerce=AttachmentType.coerce, 
+                                    validators=[DataRequired()])
+    submit_attachment = SubmitField('Upload Attachment')
+
 # Specific view for User model using the custom form
 class UserAdminView(AdminModelView):
     form = UserEditForm
@@ -179,10 +229,6 @@ class UserAdminView(AdminModelView):
         # Hash password ONLY if a new one was provided in the form
         if form.password.data:
             model.set_password(form.password.data) # Use the User model's method
-
-        # No need to manually set email/role, super() should handle it with the custom form
-        # model.email = form.email.data
-        # model.role = form.role.data
 
 # --- Models ---
 class User(UserMixin, db.Model):
@@ -208,7 +254,8 @@ class Deal(db.Model):
     contact_name = db.Column(db.String(100), nullable=True) # Added
     contact_email = db.Column(db.String(120), nullable=True) # Added
     # Relationships
-    activities = db.relationship('Activity', backref='deal', lazy='dynamic')
+    activities = db.relationship('Activity', backref='deal', lazy='dynamic', cascade='all, delete-orphan') # Add cascade
+    attachments = db.relationship('DealAttachment', backref='deal', lazy='dynamic', cascade='all, delete-orphan') # Added relationship
 
     # MEDDPIC Fields
     metrics = db.Column(db.Text, nullable=True)
@@ -234,6 +281,18 @@ class Activity(db.Model):
 
     def __repr__(self):
         return f'<Activity {self.activity_type} on {self.date}>'
+
+# New Model for Deal Attachments
+class DealAttachment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    filename = db.Column(db.String(255), nullable=False) # Original filename
+    filepath = db.Column(db.String(512), nullable=False) # Path relative to UPLOAD_FOLDER
+    file_type = db.Column(db.Enum(AttachmentType), nullable=False) # Use the Enum
+    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
+    deal_id = db.Column(db.Integer, db.ForeignKey('deal.id'), nullable=False)
+
+    def __repr__(self):
+        return f'<DealAttachment {self.filename} for Deal {self.deal_id}>'
 
 # Add Flask-Admin views AFTER model definitions
 admin.add_view(UserAdminView(User, db.session))
@@ -818,61 +877,121 @@ def deal_detail(deal_id):
 @login_required
 def edit_deal(deal_id):
     deal = Deal.query.get_or_404(deal_id)
-    # Ensure the current user owns this deal
-    if deal.user_id != current_user.id:
-        flash("You don't have permission to edit this deal.", "danger")
+    if deal.owner != current_user and current_user.role not in ['admin', 'manager']:
+        flash('You do not have permission to edit this deal.', 'danger')
         return redirect(url_for('deals'))
 
-    if request.method == 'POST':
-        # Get updated data from form
-        deal.name = request.form.get('deal_name')
+    # Instantiate the attachment form (outside POST check to be available for GET)
+    attachment_form = DealAttachmentForm()
+
+    # --- Handle Deal Edit Form Submission --- 
+    # Check if the main deal edit form's submit button was pressed
+    if request.method == 'POST' and 'submit_deal_changes' in request.form:
+        deal.name = request.form.get('name')
+        # Use revenue instead of value if model has revenue
+        deal.revenue = float(request.form.get('revenue')) if request.form.get('revenue') else None 
         deal.stage = request.form.get('stage')
-        revenue_str = request.form.get('revenue')
-        gross_profit_str = request.form.get('gross_profit')
-        expected_close_date_str = request.form.get('expected_close_date')
+        try:
+            close_date_str = request.form.get('expected_close_date')
+            if close_date_str:
+                deal.expected_close_date = datetime.strptime(close_date_str, '%Y-%m-%d').date()
+            else:
+                deal.expected_close_date = None
+        except (ValueError, TypeError):
+            deal.expected_close_date = None # Handle invalid date format or empty string
+        deal.contact_name = request.form.get('contact_name')
+        deal.contact_email = request.form.get('contact_email')
+        # Update MEDDPIC fields
         deal.metrics = request.form.get('metrics')
         deal.economic_buyer = request.form.get('economic_buyer')
         deal.decision_criteria = request.form.get('decision_criteria')
         deal.decision_process = request.form.get('decision_process')
         deal.paper_process = request.form.get('paper_process')
-        deal.identify_pain = request.form.get('identify_pain')
+        # Check field name - template uses implicate_pain, model uses identify_pain
+        # Assuming model is correct 'identify_pain'
+        deal.identify_pain = request.form.get('implicate_pain') # Align form name 'implicate_pain' with model 'identify_pain'
         deal.champion = request.form.get('champion')
-
-        # Basic validation
-        if not deal.name or not deal.stage:
-            flash('Deal Name and Stage are required.', 'warning')
-            now = datetime.now()
-            return render_template('edit_deal.html', deal=deal, now=now) # Pass 'now'
+        # Missing competition field in model? Assuming not needed based on model definition
+        # deal.competition = request.form.get('competition') 
 
         try:
-            # Convert value and date
-            deal.revenue = float(revenue_str) if revenue_str else 0.0
-            deal.gross_profit = float(gross_profit_str) if gross_profit_str else 0.0
-            deal.expected_close_date = datetime.strptime(expected_close_date_str, '%Y-%m-%d').date() if expected_close_date_str else None
-            
-            db.session.commit() # Commit the changes to the existing deal object
+            db.session.commit()
             flash('Deal updated successfully!', 'success')
-            return redirect(url_for('dashboard')) # Redirect to dashboard view
-        except ValueError:
-             flash('Invalid value or date format.', 'danger')
-             now = datetime.now()
-             return render_template('edit_deal.html', deal=deal, now=now) # Pass 'now'
+            # Redirect to detail page after saving deal changes
+            return redirect(url_for('deal_detail', deal_id=deal.id)) 
         except Exception as e:
-             db.session.rollback()
-             flash(f'An error occurred while updating the deal: {e}', 'danger')
-             now = datetime.now()
-             return render_template('edit_deal.html', deal=deal, now=now) # Pass 'now'
+            db.session.rollback()
+            flash(f'Error updating deal: {str(e)}', 'danger')
+        # If save fails, fall through to render the edit form again with errors
 
-    # GET request: Show the edit form pre-filled with deal data
-    now = datetime.now()
-    return render_template('edit_deal.html', deal=deal, now=now) # Pass 'now' to template
+    # --- Handle Attachment Form Submission --- 
+    # Check if the attachment form's submit button was pressed and validated
+    # Use attachment_form.validate_on_submit() which handles POST and validation
+    if attachment_form.validate_on_submit() and attachment_form.submit_attachment.data:
+        file = attachment_form.attachment_file.data
+        file_type = attachment_form.attachment_type.data # Coerced enum value
+        
+        if file:
+            original_filename = secure_filename(file.filename)
+            # Create a unique filename relative to the deal's upload folder
+            timestamp = int(datetime.utcnow().timestamp())
+            # Store only the unique filename, not the full path in DB
+            unique_filename = f"{deal.id}_{timestamp}_{original_filename}"
+            # Construct the full path for saving
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+            
+            try:
+                # Ensure the upload directory exists (though it should from app setup)
+                os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+                file.save(filepath)
+                
+                new_attachment = DealAttachment(
+                    deal_id=deal.id,
+                    filename=original_filename, # Store original filename for display
+                    filepath=unique_filename,   # Store unique filename relative to UPLOAD_FOLDER
+                    file_type=file_type         # Store the enum member itself
+                )
+                db.session.add(new_attachment)
+                db.session.commit()
+                flash('Attachment uploaded successfully!', 'success')
+                # Redirect to the SAME edit page to show the new attachment and clear form
+                return redirect(url_for('edit_deal', deal_id=deal_id))
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Error uploading attachment: {str(e)}', 'danger')
+                # Optional: Try to remove the partially saved file if DB commit failed
+                if os.path.exists(filepath):
+                   try:
+                       os.remove(filepath)
+                   except OSError as err:
+                       app.logger.error(f"Error removing file {filepath} after DB failure: {err}")
+        else:
+             flash('No file selected for upload.', 'warning')
+
+    # --- Prepare Data for GET Request or Failed POST --- 
+    # Fetch existing attachments for display
+    attachments = deal.attachments.order_by(DealAttachment.uploaded_at.desc()).all()
+
+    # Populate main deal form fields for GET request (if not POST)
+    if request.method == 'GET':
+        # You might need to pre-populate the *deal* form fields here 
+        # if you were using a WTForm for the deal itself.
+        # Since it uses request.form directly on POST, GET relies on template values.
+        pass # No explicit form population needed here for the current setup
+
+    # Pass both forms and attachments to the template
+    return render_template('edit_deal.html', 
+                           title='Edit Deal', 
+                           deal=deal, 
+                           attachment_form=attachment_form, # Pass the attachment form instance
+                           attachments=attachments) # Pass the list of existing attachments
 
 # Route to delete a deal
-@app.route('/deal/<int:deal_id>/delete', methods=['POST'])
+@app.route('/deal/<int:deal_id>/delete', methods=['POST'], endpoint='delete_deal_post') # Added explicit endpoint
 @login_required
 def delete_deal(deal_id):
     deal = Deal.query.get_or_404(deal_id)
-    if deal.user_id != current_user.id:
+    if deal.owner != current_user and current_user.role not in ['admin', 'manager']:
         flash("You don't have permission to delete this deal.", "danger")
         return redirect(url_for('deals')) # Or dashboard
 
@@ -917,12 +1036,14 @@ def view_activity(activity_id):
         flash('You do not have permission to view this page.', 'danger')
         return redirect(url_for('dashboard'))
 
-    activity = Activity.query.get_or_404(activity_id)
-    # Similar to deals, allow viewing any activity if manager/admin for now.
-
-    return render_template('view_activity.html',
-                           title=f"View Activity: {activity.activity_type} on {activity.date.strftime('%Y-%m-%d')}",
-                           activity=activity)
+    activity = Activity.query.options(joinedload(Activity.deal), joinedload(Activity.author)).get_or_404(activity_id)
+    # Allow owner, admin, or manager to view
+    if (activity.author != current_user and 
+        current_user.role not in ['admin', 'manager'] and 
+        (not activity.deal or activity.deal.owner != current_user)):
+        flash('You do not have permission to view this activity.', 'danger')
+        return redirect(url_for('index'))
+    return render_template('view_activity.html', title='View Activity', activity=activity)
 
 # --- Email Report Routes ---
 
@@ -1239,6 +1360,102 @@ def manager_dashboard():
                            selected_user=selected_user, # Pass selected user for filter state
                            title="Manager Dashboard")
 
+
+# --- Attachment Routes ---
+@app.route('/attachments/<int:attachment_id>/download')
+@login_required
+def download_attachment(attachment_id):
+    attachment = DealAttachment.query.get_or_404(attachment_id)
+    deal = attachment.deal # Get the associated deal
+
+    # Permission check: Only deal owner or admin/manager can download
+    if deal.owner != current_user and current_user.role not in ['admin', 'manager']:
+        flash('You do not have permission to download this file.', 'danger')
+        # Redirect to the deal detail page or another appropriate location
+        return redirect(url_for('deal_detail', deal_id=deal.id)) 
+
+    # Ensure the upload folder path is absolute
+    upload_folder = os.path.abspath(app.config['UPLOAD_FOLDER'])
+    
+    try:
+        # send_from_directory needs the directory path and the filename separately
+        # attachment.filepath stores the unique filename, attachment.filename stores the original
+        return send_from_directory(upload_folder, 
+                                   attachment.filepath, 
+                                   as_attachment=True, 
+                                   download_name=attachment.filename) # Use original filename for download prompt
+    except FileNotFoundError:
+        flash('File not found on server.', 'danger')
+        # Log the error for investigation
+        app.logger.error(f"Attachment file not found: ID={attachment.id}, Path={os.path.join(upload_folder, attachment.filepath)}")
+        return redirect(url_for('edit_deal', deal_id=deal.id)) # Redirect back to edit page
+    except Exception as e:
+        flash(f'Error downloading file: {str(e)}', 'danger')
+        app.logger.error(f"Error downloading attachment ID {attachment_id}: {e}")
+        return redirect(url_for('edit_deal', deal_id=deal.id))
+
+# Route to delete an attachment
+@app.route('/attachments/<int:attachment_id>/delete', methods=['POST'])
+@login_required
+def delete_attachment(attachment_id):
+    attachment = DealAttachment.query.get_or_404(attachment_id)
+    deal = attachment.deal # Get the associated deal for permission check and redirect
+
+    # Permission check: Only deal owner or admin/manager can delete
+    if deal.owner != current_user and current_user.role not in ['admin', 'manager']:
+        flash('You do not have permission to delete this attachment.', 'danger')
+        return redirect(url_for('edit_deal', deal_id=deal.id))
+
+    # Construct the full path to the file
+    upload_folder = os.path.abspath(app.config['UPLOAD_FOLDER'])
+    filepath = os.path.join(upload_folder, attachment.filepath)
+
+    try:
+        # 1. Delete the file from the filesystem
+        if os.path.exists(filepath):
+            os.remove(filepath)
+        else:
+             # Log if file was already missing, but proceed to delete DB record
+            app.logger.warning(f"Attempted to delete non-existent attachment file: ID={attachment.id}, Path={filepath}")
+
+        # 2. Delete the record from the database
+        db.session.delete(attachment)
+        db.session.commit()
+        flash('Attachment deleted successfully!', 'success')
+
+    except OSError as e:
+        # File system error during deletion
+        db.session.rollback() # Rollback DB change if file deletion failed unexpectedly
+        flash(f'Error deleting file from server: {str(e)}', 'danger')
+        app.logger.error(f"Error deleting attachment file: ID={attachment.id}, Path={filepath}, Error: {e}")
+    except Exception as e:
+        # Database or other error
+        db.session.rollback()
+        flash(f'Error deleting attachment record: {str(e)}', 'danger')
+        app.logger.error(f"Error deleting attachment record ID {attachment_id}: {e}")
+
+    # Redirect back to the edit deal page regardless of outcome (flash message indicates status)
+    return redirect(url_for('edit_deal', deal_id=deal.id))
+
+
+# Route to delete a deal
+@app.route('/deal/<int:deal_id>/delete', methods=['POST'])
+@login_required
+def delete_deal(deal_id):
+    deal = Deal.query.get_or_404(deal_id)
+    if deal.owner != current_user and current_user.role not in ['admin', 'manager']:
+        flash("You don't have permission to delete this deal.", "danger")
+        return redirect(url_for('deals')) # Or dashboard
+
+    # Optional: Handle related activities? Decide if they should be deleted or unlinked.
+    # For now, SQLAlchemy might raise an error if activities reference this deal,
+    # depending on cascade settings. Let's assume we want to delete the deal directly.
+    # If issues arise, we might need to handle activities (e.g., set deal_id to null or delete them).
+
+    db.session.delete(deal)
+    db.session.commit()
+    flash('Deal deleted successfully.', 'success')
+    return redirect(url_for('dashboard')) # Redirect to dashboard list after deletion
 
 # --- Main Execution ---
 if __name__ == '__main__':

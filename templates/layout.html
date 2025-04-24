@@ -1,57 +1,50 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" id="html-tag">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Sales Tracker{% endblock %}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"> {# Optional: for custom styles #}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"> 
 </head>
-<body class="bg-gray-100">
-    {# Updated navbar style #}
-    <nav class="bg-white text-gray-800 shadow-md">
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen flex flex-col">
+    <nav class="bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 shadow-md">
         <div class="container mx-auto px-4">
             <div class="flex justify-between items-center py-4">
                 <div class="flex items-center">
                     <a href="{{ url_for('index') }}" class="flex items-center mr-4">
-                        <img src="{{ url_for('static', filename='images/EVT_logo_HiRes.jpg') }}" alt="Logo" class="h-8 w-auto mr-2"> {# Corrected filename #}
-                        <span class="text-xl font-bold text-gray-800">Sales Tracker</span> {# Ensure title text is dark #}
+                        <img src="{{ url_for('static', filename='images/EVT_logo_HiRes.jpg') }}" alt="Logo" class="h-8 w-auto mr-2"> 
+                        <span class="text-xl font-bold text-gray-800 dark:text-gray-100">Sales Tracker</span>
                     </a>
                 </div>
-                <div>
+                <div class="flex items-center space-x-4">
                     {% if current_user.is_authenticated %}
-                        <div class="flex items-center space-x-4">
-                            {# Updated authenticated link styles #}
-                            <a href="{{ url_for('index') }}" class="text-gray-600 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium">Dashboard</a>
-                            <a href="{{ url_for('log_activity') }}" class="text-gray-600 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium">Log Activity</a>
-                            <a href="{{ url_for('deals') }}" class="text-gray-600 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium">Manage Deals</a>
-                            {% if current_user.role == 'manager' or current_user.role == 'admin' %}
-                                <a href="{{ url_for('manager_dashboard') }}" class="text-gray-600 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium">Manager Dashboard</a>
-                            {% endif %}
-                            <a href="{{ url_for('logout') }}" class="text-gray-600 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium">Logout ({{ current_user.email }})</a>
-                        </div>
+                        <a href="{{ url_for('index') }}" class="text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 px-3 py-2 rounded-md text-sm font-medium">Dashboard</a>
+                        <a href="{{ url_for('log_activity') }}" class="text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 px-3 py-2 rounded-md text-sm font-medium">Log Activity</a>
+                        <a href="{{ url_for('deals') }}" class="text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 px-3 py-2 rounded-md text-sm font-medium">Manage Deals</a>
+                        {% if current_user.role == 'manager' or current_user.role == 'admin' %}
+                            <a href="{{ url_for('manager_dashboard') }}" class="text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 px-3 py-2 rounded-md text-sm font-medium">Manager Dashboard</a>
+                        {% endif %}
+                        <a href="{{ url_for('logout') }}" class="text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 px-3 py-2 rounded-md text-sm font-medium">Logout ({{ current_user.email }})</a>
                     {% else %}
-                         {# Updated logged-out link styles #}
-                        <a href="{{ url_for('login') }}" class="text-gray-600 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium">Login</a>
-                        <a href="{{ url_for('register') }}" class="text-gray-600 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium">Register</a>
+                        <a href="{{ url_for('login') }}" class="text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 px-3 py-2 rounded-md text-sm font-medium">Login</a>
+                        <a href="{{ url_for('register') }}" class="text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 px-3 py-2 rounded-md text-sm font-medium">Register</a>
                     {% endif %}
+
+                    <button id="darkModeToggle" class="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        <svg id="theme-toggle-dark-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
+                        <svg id="theme-toggle-light-icon" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
+                    </button>
                 </div>
             </div>
         </div>
     </nav>
 
-    <main class="container mx-auto px-4 py-8">
-        {# Flash messages #}
+    <main class="container mx-auto px-4 py-8 flex-grow">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 <div class="mb-4">
                 {% for category, message in messages %}
-                    <div class="p-4 rounded border 
-                        {% if category == 'danger' %} bg-red-100 border-red-400 text-red-700
-                        {% elif category == 'success' %} bg-green-100 border-green-400 text-green-700
-                        {% elif category == 'warning' %} bg-yellow-100 border-yellow-400 text-yellow-700
-                        {% else %} bg-blue-100 border-blue-400 text-blue-700 {% endif %}"
-                         role="alert">
+                    <div class="p-4 rounded-md {{ 'bg-green-100 dark:bg-green-800 dark:bg-opacity-50 border border-green-400 dark:border-green-600 text-green-700 dark:text-green-100' if category == 'success' else 'bg-red-100 dark:bg-red-800 dark:bg-opacity-50 border border-red-400 dark:border-red-600 text-red-700 dark:text-red-100' }}" role="alert">
                         {{ message }}
                     </div>
                 {% endfor %}
@@ -59,16 +52,92 @@
             {% endif %}
         {% endwith %}
 
-        {# Main content block #}
         {% block content %}
         {% endblock %}
     </main>
 
-    <footer class="text-center py-4 text-gray-600 text-sm">
+    <footer class="text-center py-4 text-gray-600 dark:text-gray-400 text-sm mt-auto">
         &copy; {{ now.year }} Sales Tracker App
     </footer>
 
-    {# Optional: Add script tags here if needed #}
+    {# Dark Mode Toggle Script #}
+    <script>
+        // Remove the alert now that we know the script runs
+        // alert('Dark mode script is running!'); 
+
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM fully loaded and parsed'); // Debug log
+
+            const themeToggleDarkIcon = document.getElementById('theme-toggle-dark-icon');
+            const themeToggleLightIcon = document.getElementById('theme-toggle-light-icon');
+            const themeToggleButton = document.getElementById('darkModeToggle');
+            const htmlTag = document.documentElement; // Get the <html> element
+
+            console.log('Elements found:', { // Debug log
+                darkIcon: !!themeToggleDarkIcon, // Log if found (true/false)
+                lightIcon: !!themeToggleLightIcon,
+                button: !!themeToggleButton,
+                html: !!htmlTag
+            });
+
+            if (!themeToggleButton || !themeToggleDarkIcon || !themeToggleLightIcon || !htmlTag) {
+                 console.error('One or more essential elements for dark mode toggle not found!');
+                 return;
+            }
+
+            // Function to set the theme
+            function setTheme(theme) {
+                console.log(`Attempting to set theme to: ${theme}`); // Debug log
+                if (theme === 'dark') {
+                    console.log('Adding dark class to HTML tag');
+                    htmlTag.classList.add('dark');
+                    console.log('Hiding light icon, showing dark icon');
+                    themeToggleLightIcon.classList.add('hidden');
+                    themeToggleDarkIcon.classList.remove('hidden');
+                    localStorage.setItem('color-theme', 'dark');
+                    console.log('Theme set to dark. localStorage:', localStorage.getItem('color-theme'));
+                } else {
+                    console.log('Removing dark class from HTML tag');
+                    htmlTag.classList.remove('dark');
+                     console.log('Showing light icon, hiding dark icon');
+                    themeToggleDarkIcon.classList.add('hidden');
+                    themeToggleLightIcon.classList.remove('hidden');
+                    localStorage.setItem('color-theme', 'light');
+                     console.log('Theme set to light. localStorage:', localStorage.getItem('color-theme'));
+                }
+                 console.log('HTML classList after setting theme:', htmlTag.classList.toString());
+                 console.log('Dark icon hidden:', themeToggleDarkIcon.classList.contains('hidden'));
+                 console.log('Light icon hidden:', themeToggleLightIcon.classList.contains('hidden'));
+            }
+
+            // Check initial theme on page load
+            // Default to 'light' if nothing is stored and prefers-color-scheme is not dark
+            let initialTheme = localStorage.getItem('color-theme') || 
+                               (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            
+            console.log(`Initial theme check determined: ${initialTheme}`); // Debug log
+            // Ensure the correct icon is shown initially based on theme
+            if(initialTheme === 'dark') {
+                themeToggleLightIcon.classList.add('hidden');
+                themeToggleDarkIcon.classList.remove('hidden');
+            } else {
+                 themeToggleDarkIcon.classList.add('hidden');
+                themeToggleLightIcon.classList.remove('hidden');
+            }
+            // Apply the theme (this will also log)
+            setTheme(initialTheme);
+
+            // Add event listener for the toggle button
+            themeToggleButton.addEventListener('click', () => {
+                console.log('Toggle button clicked!'); // Debug log
+                // Determine the new theme based on the current state
+                const newTheme = htmlTag.classList.contains('dark') ? 'light' : 'dark';
+                setTheme(newTheme); // Call setTheme with the determined new theme
+            });
+        });
+    </script>
+
+    {# Optional: Add other script tags here if needed #}
     {# <script src="{{ url_for('static', filename='js/main.js') }}"></script> #}
 </body>
 </html>

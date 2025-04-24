@@ -5,169 +5,170 @@
 {% block title %}Manage Deals{% endblock %}
 
 {% block content %}
-<h2 class="text-3xl font-semibold mb-6 text-gray-800">Manage Deals</h2>
+<div class="container mx-auto px-4 py-8 dark:bg-gray-800">
+    <h2 class="text-3xl font-bold text-gray-800 dark:text-gray-100 mb-6">Manage Deals</h2>
 
-<!-- Flash Messages -->
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% if messages %}
-    <div class="mb-4">
-      {% for category, message in messages %}
-        <div class="p-4 rounded {{ 'bg-green-100 border border-green-400 text-green-700' if category == 'success' else ('bg-yellow-100 border border-yellow-400 text-yellow-700' if category == 'warning' else 'bg-red-100 border border-red-400 text-red-700') }}" role="alert">
-          {{ message }}
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="mb-4">
+          {% for category, message in messages %}
+            <div class="p-4 rounded {{ 'bg-green-100 border border-green-400 text-green-700 dark:bg-green-900 dark:border-green-700 dark:text-green-100' if category == 'success' else ('bg-yellow-100 border border-yellow-400 text-yellow-700 dark:bg-yellow-900 dark:border-yellow-700 dark:text-yellow-100' if category == 'warning' else 'bg-red-100 border border-red-400 text-red-700 dark:bg-red-900 dark:border-red-700 dark:text-red-100') }}" role="alert">
+              {{ message }}
+            </div>
+          {% endfor %}
         </div>
-      {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <!-- Create New Deal Form -->
+    <div class="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg shadow mb-8">
+        <h3 class="text-xl font-semibold mb-4 text-gray-700 dark:text-gray-300">Create New Deal</h3>
+        <form method="POST" action="{{ url_for('deals') }}" class="space-y-4">
+            <div>
+                <label for="deal_name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Deal Name <span class="text-red-500">*</span></label>
+                <input type="text" id="deal_name" name="deal_name" required class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 dark:focus:ring-indigo-600 focus:border-indigo-500 dark:focus:border-indigo-600 sm:text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
+            </div>
+            <div>
+                <label for="stage" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Stage <span class="text-red-500">*</span></label>
+                <select id="stage" name="stage" required class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 dark:focus:ring-indigo-600 focus:border-indigo-500 dark:focus:border-indigo-600 sm:text-sm">
+                    <option value="" disabled selected>Select Stage</option>
+                    <option value="Prospecting">Prospecting</option>
+                    <option value="Qualification">Qualification</option>
+                    <option value="Needs Analysis">Needs Analysis</option>
+                    <option value="Value Proposition">Value Proposition</option>
+                    <option value="Decision Makers">Decision Makers</option>
+                    <option value="Perception Analysis">Perception Analysis</option>
+                    <option value="Proposal/Price Quote">Proposal/Price Quote</option>
+                    <option value="Negotiation/Review">Negotiation/Review</option>
+                    <option value="Closed Won">Closed Won</option>
+                    <option value="Closed Lost">Closed Lost</option>
+                    <!-- Add more stages as needed -->
+                </select>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label for="revenue" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Revenue ($)</label>
+                    <input type="number" step="0.01" id="revenue" name="revenue" placeholder="0.00" class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 dark:focus:ring-indigo-600 focus:border-indigo-500 dark:focus:border-indigo-600 sm:text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
+                </div>
+                <div>
+                    <label for="gross_profit" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Gross Profit ($)</label>
+                    <input type="number" step="0.01" id="gross_profit" name="gross_profit" placeholder="0.00" class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 dark:focus:ring-indigo-600 focus:border-indigo-500 dark:focus:border-indigo-600 sm:text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
+                </div>
+            </div>
+            <div class="mb-4">
+                <label for="expected_close_date" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Expected Close Date</label>
+                <input type="date" name="expected_close_date" id="expected_close_date" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-300 dark:focus:border-indigo-600 focus:ring focus:ring-indigo-200 dark:focus:ring-indigo-600 focus:ring-opacity-50 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
+            </div>
+
+            <!-- MEDDPIC Fields -->
+            <h3 class="text-lg font-medium leading-6 text-gray-900 dark:text-gray-100 mb-2">MEDDPIC Details</h3>
+            <div class="mb-4">
+                <label for="metrics" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Metrics</label>
+                <textarea name="metrics" id="metrics" rows="3" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-300 dark:focus:border-indigo-600 focus:ring focus:ring-indigo-200 dark:focus:ring-indigo-600 focus:ring-opacity-50 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"></textarea>
+            </div>
+            <div class="mb-4">
+                <label for="economic_buyer" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Economic Buyer</label>
+                <textarea name="economic_buyer" id="economic_buyer" rows="3" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-300 dark:focus:border-indigo-600 focus:ring focus:ring-indigo-200 dark:focus:ring-indigo-600 focus:ring-opacity-50 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"></textarea>
+            </div>
+            <div class="mb-4">
+                <label for="decision_criteria" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Decision Criteria</label>
+                <textarea name="decision_criteria" id="decision_criteria" rows="3" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-300 dark:focus:border-indigo-600 focus:ring focus:ring-indigo-200 dark:focus:ring-indigo-600 focus:ring-opacity-50 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"></textarea>
+            </div>
+            <div class="mb-4">
+                <label for="decision_process" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Decision Process</label>
+                <textarea name="decision_process" id="decision_process" rows="3" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-300 dark:focus:border-indigo-600 focus:ring focus:ring-indigo-200 dark:focus:ring-indigo-600 focus:ring-opacity-50 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"></textarea>
+            </div>
+            <div class="mb-4">
+                <label for="paper_process" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Paper Process</label>
+                <textarea name="paper_process" id="paper_process" rows="3" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-300 dark:focus:border-indigo-600 focus:ring focus:ring-indigo-200 dark:focus:ring-indigo-600 focus:ring-opacity-50 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"></textarea>
+            </div>
+            <div class="mb-4">
+                <label for="identify_pain" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Identify Pain</label>
+                <textarea name="identify_pain" id="identify_pain" rows="3" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-300 dark:focus:border-indigo-600 focus:ring focus:ring-indigo-200 dark:focus:ring-indigo-600 focus:ring-opacity-50 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"></textarea>
+            </div>
+            <div class="mb-4">
+                <label for="champion" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Champion</label>
+                <textarea name="champion" id="champion" rows="3" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-300 dark:focus:border-indigo-600 focus:ring focus:ring-indigo-200 dark:focus:ring-indigo-600 focus:ring-opacity-50 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"></textarea>
+            </div>
+
+            <div>
+                <button type="submit" class="w-full inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 dark:bg-indigo-500 hover:bg-indigo-700 dark:hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-2 dark:focus:ring-indigo-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 3.75V16.5m-4.5-12.75V16.5m-4.5-12.75V16.5m0 4.5L7.5 21l-3-3m6 0-3 3 3 3M19.5 3.75h.008v.008h-.008V3.75Z" /></svg>
+                    Create Deal
+                </button>
+            </div>
+        </form>
     </div>
-  {% endif %}
-{% endwith %}
 
-<!-- Create New Deal Form -->
-<div class="bg-gray-50 p-6 rounded-lg shadow mb-8">
-    <h3 class="text-xl font-semibold mb-4 text-gray-700">Create New Deal</h3>
-    <form method="POST" action="{{ url_for('deals') }}" class="space-y-4">
-        <div>
-            <label for="deal_name" class="block text-sm font-medium text-gray-700">Deal Name <span class="text-red-500">*</span></label>
-            <input type="text" id="deal_name" name="deal_name" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-        </div>
-        <div>
-            <label for="stage" class="block text-sm font-medium text-gray-700">Stage <span class="text-red-500">*</span></label>
-            <select id="stage" name="stage" required class="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                <option value="" disabled selected>Select Stage</option>
-                <option value="Prospecting">Prospecting</option>
-                <option value="Qualification">Qualification</option>
-                <option value="Needs Analysis">Needs Analysis</option>
-                <option value="Value Proposition">Value Proposition</option>
-                <option value="Decision Makers">Decision Makers</option>
-                <option value="Perception Analysis">Perception Analysis</option>
-                <option value="Proposal/Price Quote">Proposal/Price Quote</option>
-                <option value="Negotiation/Review">Negotiation/Review</option>
-                <option value="Closed Won">Closed Won</option>
-                <option value="Closed Lost">Closed Lost</option>
-                <!-- Add more stages as needed -->
-            </select>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-                <label for="revenue" class="block text-sm font-medium text-gray-700">Revenue ($)</label>
-                <input type="number" step="0.01" id="revenue" name="revenue" placeholder="0.00" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-            </div>
-            <div>
-                <label for="gross_profit" class="block text-sm font-medium text-gray-700">Gross Profit ($)</label>
-                <input type="number" step="0.01" id="gross_profit" name="gross_profit" placeholder="0.00" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-            </div>
-        </div>
-        <div class="mb-4">
-            <label for="expected_close_date" class="block text-sm font-medium text-gray-700">Expected Close Date</label>
-            <input type="date" name="expected_close_date" id="expected_close_date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
-        </div>
-
-        <!-- MEDDPIC Fields -->
-        <h3 class="text-lg font-medium leading-6 text-gray-900 mb-2">MEDDPIC Details</h3>
-        <div class="mb-4">
-            <label for="metrics" class="block text-sm font-medium text-gray-700">Metrics</label>
-            <textarea name="metrics" id="metrics" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"></textarea>
-        </div>
-        <div class="mb-4">
-            <label for="economic_buyer" class="block text-sm font-medium text-gray-700">Economic Buyer</label>
-            <textarea name="economic_buyer" id="economic_buyer" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"></textarea>
-        </div>
-        <div class="mb-4">
-            <label for="decision_criteria" class="block text-sm font-medium text-gray-700">Decision Criteria</label>
-            <textarea name="decision_criteria" id="decision_criteria" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"></textarea>
-        </div>
-        <div class="mb-4">
-            <label for="decision_process" class="block text-sm font-medium text-gray-700">Decision Process</label>
-            <textarea name="decision_process" id="decision_process" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"></textarea>
-        </div>
-        <div class="mb-4">
-            <label for="paper_process" class="block text-sm font-medium text-gray-700">Paper Process</label>
-            <textarea name="paper_process" id="paper_process" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"></textarea>
-        </div>
-        <div class="mb-4">
-            <label for="identify_pain" class="block text-sm font-medium text-gray-700">Identify Pain</label>
-            <textarea name="identify_pain" id="identify_pain" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"></textarea>
-        </div>
-        <div class="mb-4">
-            <label for="champion" class="block text-sm font-medium text-gray-700">Champion</label>
-            <textarea name="champion" id="champion" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"></textarea>
-        </div>
-
-        <div>
-            <button type="submit" class="w-full inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 3.75V16.5m-4.5-12.75V16.5m-4.5-12.75V16.5m0 4.5L7.5 21l-3-3m6 0-3 3 3 3M19.5 3.75h.008v.008h-.008V3.75Z" /></svg>
-                Create Deal
-            </button>
-        </div>
-    </form>
-</div>
-
-<!-- List Existing Deals -->
-<div class="bg-white shadow overflow-hidden sm:rounded-lg">
-    <h3 class="text-xl font-semibold px-4 py-5 sm:px-6 text-gray-800 border-b border-gray-200">Your Deals</h3>
-    {% if deals_pagination and deals_pagination.items %}
-    <ul class="divide-y divide-gray-200">
-        {% for deal in deals_pagination.items %}
-        <li class="px-4 py-4 sm:px-6 hover:bg-gray-50">
-            <div class="flex items-center justify-between">
-                <p class="text-sm font-medium text-indigo-600 truncate">
-                    <a href="{{ url_for('deal_detail', deal_id=deal.id) }}" class="hover:underline">{{ deal.name }}</a>
-                </p>
-                <div class="ml-2 flex-shrink-0 flex">
-                    {# Conditional badge color based on stage #}
-                    <p class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                              {% if deal.stage == 'Closed Won' %}
-                                  bg-green-100 text-green-800
-                              {% elif deal.stage == 'Closed Lost' %}
-                                  bg-red-100 text-red-800
-                              {% else %}
-                                  bg-blue-100 text-blue-800
-                              {% endif %}">
-                        {{ deal.stage }}
+    <!-- List Existing Deals -->
+    <div class="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-lg">
+        <h3 class="text-xl font-semibold px-4 py-5 sm:px-6 text-gray-800 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700">Your Deals</h3>
+        {% if deals_pagination and deals_pagination.items %}
+        <ul class="divide-y divide-gray-200 dark:divide-gray-700">
+            {% for deal in deals_pagination.items %}
+            <li class="px-4 py-4 sm:px-6 hover:bg-gray-50 dark:hover:bg-gray-700">
+                <div class="flex items-center justify-between">
+                    <p class="text-sm font-medium text-indigo-600 dark:text-indigo-400 truncate">
+                        <a href="{{ url_for('deal_detail', deal_id=deal.id) }}" class="hover:underline">{{ deal.name }}</a>
                     </p>
+                    <div class="ml-2 flex-shrink-0 flex">
+                        {# Conditional badge color based on stage #}
+                        <p class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                  {% if deal.stage == 'Closed Won' %}
+                                      bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100
+                                  {% elif deal.stage == 'Closed Lost' %}
+                                      bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100
+                                  {% else %}
+                                      bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100
+                                  {% endif %}">
+                            {{ deal.stage }}
+                        </p>
+                    </div>
                 </div>
-            </div>
-            <div class="mt-2 sm:flex sm:justify-between">
-                <div class="sm:flex">
-                    <p class="flex items-center text-sm text-gray-500 mr-4">
-                        <svg class="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm-1.75-8.5a.75.75 0 00-1.5 0v2.5a.75.75 0 001.5 0v-2.5zM10 7.75a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 7.75zM12.75 9.5a.75.75 0 00-1.5 0v2.5a.75.75 0 001.5 0v-2.5z" clip-rule="evenodd" /></svg> 
-                        Rev: ${{ "{:,.2f}".format(deal.revenue or 0) }}
-                    </p>
-                    <p class="flex items-center text-sm text-gray-500 mr-4">
-                        <svg class="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818.879.536a.5.5 0 0 0 .621 0l.879-.536M12 18.75V6m-3 12.75v-1.131A5 5 0 0 1 12 15.621V6m3 12.75v-1.13A5 5 0 0 0 12 15.621V6M15 18.75V6" /></svg>
-                        GP: ${{ "{:,.2f}".format(deal.gross_profit or 0) }}
-                    </p>
-                    <p class="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
-                         <svg class="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
-                           <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5m-9-6h.008v.008H12v-.008ZM12 15h.008v.008H12V15Zm0 2.25h.008v.008H12v-.008ZM9.75 15h.008v.008H9.75V15Zm0 2.25h.008v.008H9.75v-.008ZM7.5 15h.008v.008H7.5V15Zm0 2.25h.008v.008H7.5v-.008Zm6.75-4.5h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V17.25Zm0 2.25h.008v.008h-.008v-.008Zm2.25-4.5h.008v.008H16.5v-.008Zm0 2.25h.008v.008H16.5V17.25Zm0 2.25h.008v.008H16.5v-.008Z" />
-                         </svg>
-                        {% if deal.expected_close_date %}
-                            <p>
-                                Close date: <time datetime="{{ deal.expected_close_date.strftime('%Y-%m-%d') }}">{{ deal.expected_close_date.strftime('%b %d, %Y') }}</time>
-                            </p>
-                        {% else %}
-                            <p>Close date: Not set</p>
-                        {% endif %}
-                    </p>
+                <div class="mt-2 sm:flex sm:justify-between">
+                    <div class="sm:flex">
+                        <p class="flex items-center text-sm text-gray-500 dark:text-gray-400 mr-4">
+                            <svg class="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400 dark:text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm-1.75-8.5a.75.75 0 00-1.5 0v2.5a.75.75 0 001.5 0v-2.5zM10 7.75a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 7.75zM12.75 9.5a.75.75 0 00-1.5 0v2.5a.75.75 0 001.5 0v-2.5zM7.5 9.5a.75.75 0 00-1.5 0v2.5a.75.75 0 001.5 0v-2.5z" clip-rule="evenodd" /></svg> 
+                            Rev: ${{ "{:,.2f}".format(deal.revenue or 0) }}
+                        </p>
+                        <p class="flex items-center text-sm text-gray-500 dark:text-gray-400 mr-4">
+                            <svg class="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400 dark:text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818.879.536a.5.5 0 0 0 .621 0l.879-.536M12 18.75V6m-3 12.75v-1.131A5 5 0 0 1 12 15.621V6m3 12.75v-1.13A5 5 0 0 0 12 15.621V6M15 18.75V6" /></svg>
+                            GP: ${{ "{:,.2f}".format(deal.gross_profit or 0) }}
+                        </p>
+                        <p class="mt-2 flex items-center text-sm text-gray-500 dark:text-gray-400 sm:mt-0">
+                             <svg class="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400 dark:text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                               <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5m-9-6h.008v.008H12v-.008ZM12 15h.008v.008H12V15Zm0 2.25h.008v.008H12v-.008ZM9.75 15h.008v.008H9.75V15Zm0 2.25h.008v.008H9.75v-.008ZM7.5 15h.008v.008H7.5V15Zm0 2.25h.008v.008H7.5v-.008Zm6.75-4.5h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V17.25Zm0 2.25h.008v.008h-.008v-.008Zm2.25-4.5h.008v.008H16.5v-.008Zm0 2.25h.008v.008H16.5V17.25Zm0 2.25h.008v.008H16.5v-.008Z" />
+                             </svg>
+                            {% if deal.expected_close_date %}
+                                <p>
+                                    Close date: <time datetime="{{ deal.expected_close_date.strftime('%Y-%m-%d') }}">{{ deal.expected_close_date.strftime('%b %d, %Y') }}</time>
+                                </p>
+                            {% else %}
+                                <p>Close date: Not set</p>
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="mt-2 flex items-center text-sm text-gray-500 dark:text-gray-400 sm:mt-0">
+                        <a href="{{ url_for('deal_detail', deal_id=deal.id) }}" class="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300 mr-3 inline-flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 mr-1"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
+                            View
+                        </a>
+                        <a href="{{ url_for('edit_deal', deal_id=deal.id) }}" class="bg-indigo-600 dark:bg-indigo-500 hover:bg-indigo-700 dark:hover:bg-indigo-600 text-white font-medium py-1 px-3 rounded shadow-sm inline-flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 mr-1"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>
+                            Edit
+                        </a>
+                    </div>
                 </div>
-                <div class="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
-                    <a href="{{ url_for('deal_detail', deal_id=deal.id) }}" class="text-indigo-600 hover:text-indigo-900 mr-3 inline-flex items-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 mr-1"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
-                        View
-                    </a>
-                    <a href="{{ url_for('edit_deal', deal_id=deal.id) }}" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-1 px-3 rounded shadow-sm inline-flex items-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 mr-1"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>
-                        Edit
-                    </a>
-                </div>
-            </div>
-        </li>
-        {% endfor %}
-    </ul>
-    {% else %}
-    <p class="px-4 py-4 sm:px-6 text-gray-500">You have no deals yet. Create one above!</p>
-    {% endif %}
-    {% if deals_pagination and deals_pagination.total > 0 %}
-        {{ render_pagination(deals_pagination, 'deals', [10, 25, 50, 'All'], current_per_page, sort_by=sort_by, sort_order=sort_order) }}
-    {% endif %}
-</div>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="px-4 py-4 sm:px-6 text-gray-500 dark:text-gray-400">You have no deals yet. Create one above!</p>
+        {% endif %}
+        {% if deals_pagination and deals_pagination.total > 0 %}
+            {{ render_pagination(deals_pagination, 'deals', [10, 25, 50, 'All'], current_per_page, sort_by=sort_by, sort_order=sort_order) }}
+        {% endif %}
+    </div>
 
 {% endblock %}
