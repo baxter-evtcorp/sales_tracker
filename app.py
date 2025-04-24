@@ -283,6 +283,8 @@ class Deal(db.Model):
 
     # Relationship back to activities associated with this deal
     activities = db.relationship('Activity', backref='deal', lazy='dynamic')
+    # Add missing relationship back to DealAttachment
+    attachments = db.relationship('DealAttachment', backref='deal', lazy='dynamic', cascade='all, delete-orphan')
 
     def __repr__(self):
         return f'<Deal {self.name}>'
