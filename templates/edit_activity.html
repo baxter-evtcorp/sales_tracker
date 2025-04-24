@@ -3,18 +3,18 @@
 {% block title %}Edit Activity{% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-8">
-    <h1 class="text-2xl font-semibold mb-6">Edit Activity</h1>
+<div class="container mx-auto px-4 py-8 dark:bg-gray-900">
+    <h1 class="text-2xl font-semibold mb-6 dark:text-white">Edit Activity</h1>
 
-    <form method="POST" action="{{ url_for('edit_activity', activity_id=activity.id) }}" class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
+    <form method="POST" action="{{ url_for('edit_activity', activity_id=activity.id) }}" class="bg-white dark:bg-gray-800 shadow-md rounded px-8 pt-6 pb-8 mb-4">
         
         {# Activity Type #}
         <div class="mb-4">
-            <label class="block text-gray-700 text-sm font-bold mb-2" for="activity_type">
+            <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="activity_type">
                 Activity Type <span class="text-red-500">*</span>
             </label>
             <select id="activity_type" name="activity_type" required
-                    class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                    class="shadow appearance-none border dark:border-gray-600 rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 dark:bg-gray-700 leading-tight focus:outline-none focus:shadow-outline">
                 <option value="Call" {% if activity.activity_type == 'Call' %}selected{% endif %}>Call</option>
                 <option value="Email" {% if activity.activity_type == 'Email' %}selected{% endif %}>Email</option>
                 <option value="Meeting" {% if activity.activity_type == 'Meeting' %}selected{% endif %}>Meeting</option>
@@ -26,47 +26,47 @@
 
         {# Description #}
         <div class="mb-4">
-            <label class="block text-gray-700 text-sm font-bold mb-2" for="description">
+            <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="description">
                 Description/Notes
             </label>
             <textarea id="description" name="description" rows="4"
-                      class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">{{ activity.description or '' }}</textarea>
+                      class="shadow appearance-none border dark:border-gray-600 rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 dark:bg-gray-700 leading-tight focus:outline-none focus:shadow-outline">{{ activity.description or '' }}</textarea>
         </div>
 
         {# Date #}
         <div class="mb-4">
-            <label class="block text-gray-700 text-sm font-bold mb-2" for="date">
+            <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="date">
                 Date
             </label>
             {# Format date as YYYY-MM-DD for the input field #}
             <input type="date" id="date" name="date" value="{{ activity.date.strftime('%Y-%m-%d') if activity.date else '' }}"
-                   class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                   class="shadow appearance-none border dark:border-gray-600 rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 dark:bg-gray-700 leading-tight focus:outline-none focus:shadow-outline">
         </div>
 
         {# Contact Name #}
         <div class="mb-4">
-            <label class="block text-gray-700 text-sm font-bold mb-2" for="contact_name">
+            <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="contact_name">
                 Contact Name
             </label>
             <input type="text" id="contact_name" name="contact_name" value="{{ activity.contact_name or '' }}"
-                   class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                   class="shadow appearance-none border dark:border-gray-600 rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 dark:bg-gray-700 leading-tight focus:outline-none focus:shadow-outline">
         </div>
 
         {# Company Name #}
         <div class="mb-6">
-            <label class="block text-gray-700 text-sm font-bold mb-2" for="company_name">
+            <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="company_name">
                 Company Name
             </label>
-            <input type="text" id="company_name" name="company_name" value="{{ activity.customer.name if activity.customer else '' }}" class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm dark:bg-gray-700 dark:text-gray-200">
+            <input type="text" id="company_name" name="company_name" value="{{ activity.customer.name if activity.customer else '' }}" class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200">
         </div>
 
         {# Associated Deal #}
         <div class="mb-6">
-            <label class="block text-gray-700 text-sm font-bold mb-2" for="deal_id">
+            <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="deal_id">
                 Associated Deal (Optional)
             </label>
             <select id="deal_id" name="deal_id"
-                    class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                    class="shadow appearance-none border dark:border-gray-600 rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 dark:bg-gray-700 leading-tight focus:outline-none focus:shadow-outline">
                 <option value="">-- Select a Deal --</option>
                 {% for deal in deals %}
                     <option value="{{ deal.id }}" {% if activity.deal_id == deal.id %}selected{% endif %}>{{ deal.name }}</option>
@@ -82,7 +82,7 @@
                 Update Activity
             </button>
             {# Secondary Button: Cancel #}
-            <a href="{{ url_for('index') }}" class="bg-white hover:bg-gray-50 text-gray-700 font-medium py-2 px-4 rounded border border-gray-300 shadow-sm inline-flex items-center">
+            <a href="{{ url_for('index') }}" class="bg-white hover:bg-gray-50 text-gray-700 font-medium py-2 px-4 rounded border border-gray-300 shadow-sm inline-flex items-center dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg> {# Using X mark icon #}
                 Cancel
             </a>

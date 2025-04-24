@@ -52,6 +52,29 @@
         </div>
     </div>
 
+    {# Attachments Section #}
+    <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+        <h2 class="text-xl font-semibold text-gray-700 mb-4">Attachments</h2>
+        {% if attachments %}
+            <ul class="list-disc pl-5 space-y-2">
+                {% for attachment in attachments %}
+                    <li class="text-gray-800">
+                        <a href="{{ url_for('download_attachment', attachment_id=attachment.id) }}" 
+                           class="text-indigo-600 hover:text-indigo-800 hover:underline"
+                           download="{{ attachment.filename }}"> 
+                            {{ attachment.filename }}
+                        </a>
+                        {% if attachment.description %}
+                            <span class="text-sm text-gray-500 ml-2">- {{ attachment.description }}</span>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="text-gray-600">No attachments found for this deal.</p>
+        {% endif %}
+    </div>
+
     {# Associated Activities Section #}
     <div class="bg-white p-6 rounded-lg shadow-md">
         <h2 class="text-xl font-semibold text-gray-700 mb-4">Associated Activities</h2>

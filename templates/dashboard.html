@@ -189,7 +189,8 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${{ "{:,.2f}".format(deal.gross_profit) if deal.gross_profit is not none else '0.00' }}</td> {# Added GP Data #}
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{{ deal.close_date.strftime('%Y-%m-%d') if deal.close_date else 'N/A' }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{{ deal.contact_name or 'N/A' }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{{ deal.company_name or 'N/A' }}</td>
+                                {# Use customer relationship if available, otherwise fall back to company_name #}
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{{ deal.customer.name if deal.customer else (deal.company_name or 'N/A') }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                     <div class="flex items-center space-x-2">
                                         {# Primary Button: Edit #}
@@ -249,7 +250,8 @@
                                 {% endif %}
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{{ activity.contact_name or 'N/A' }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{{ activity.company_name or 'N/A' }}</td>
+                            {# Use the customer relationship #}
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{{ activity.customer.name if activity.customer else 'N/A' }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                 <div class="flex items-center space-x-2">
                                     {# Primary Button: Edit #}
