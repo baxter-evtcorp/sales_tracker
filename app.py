@@ -816,7 +816,7 @@ def add_edit_activity(deal_id=None, activity_id=None):
             # --- Basic Validation ---
             if not activity_type or not activity_date_str:
                 flash('Activity type and date are required.', 'danger')
-                return render_template('add_edit_activity.html', deal=deal, now=now)
+                return render_template('log_activity.html', deal=deal, now=now)
 
             # --- Date Parsing ---
             try:
@@ -824,7 +824,7 @@ def add_edit_activity(deal_id=None, activity_id=None):
                 activity_datetime = datetime.combine(activity_date, datetime.min.time())
             except ValueError:
                 flash('Invalid date format. Please use YYYY-MM-DD.', 'warning')
-                return render_template('add_edit_activity.html', deal=deal, now=now)
+                return render_template('log_activity.html', deal=deal, now=now)
 
             customer_id = None
             if company_name:
@@ -855,10 +855,10 @@ def add_edit_activity(deal_id=None, activity_id=None):
                 db.session.rollback()
                 print(f"Error saving activity: {e}")
                 flash(f'Error saving activity. Please try again. Details: {e}', 'danger')
-                return render_template('add_edit_activity.html', deal=deal, now=now)
+                return render_template('log_activity.html', deal=deal, now=now)
 
         # GET request: Show the add form pre-filled with deal data
-        return render_template('add_edit_activity.html', deal=deal, now=now)
+        return render_template('log_activity.html', deal=deal, now=now)
 
     # --- Edit Activity Logic ---
     elif activity_id:
@@ -895,13 +895,13 @@ def add_edit_activity(deal_id=None, activity_id=None):
             except ValueError:
                 flash('Invalid date format. Please use YYYY-MM-DD.', 'warning')
                 deals = current_user.deals.order_by(Deal.name).all()
-                return render_template('add_edit_activity.html', activity=activity, deals=deals, now=now)
+                return render_template('log_activity.html', activity=activity, deals=deals, now=now)
 
             # Basic validation
             if not activity.activity_type: # Check correct field name
                 flash('Activity Type is required.', 'warning')
                 deals = current_user.deals.order_by(Deal.name).all()
-                return render_template('add_edit_activity.html', activity=activity, deals=deals, now=now)
+                return render_template('log_activity.html', activity=activity, deals=deals, now=now)
 
             try:
                 db.session.commit()
@@ -911,11 +911,11 @@ def add_edit_activity(deal_id=None, activity_id=None):
                 db.session.rollback()
                 flash(f'An error occurred while updating the activity: {e}', 'danger')
                 deals = current_user.deals.order_by(Deal.name).all()
-                return render_template('add_edit_activity.html', activity=activity, deals=deals, now=now)
+                return render_template('log_activity.html', activity=activity, deals=deals, now=now)
 
         # GET request: Show the edit form pre-filled with activity data
         deals = current_user.deals.order_by(Deal.name).all()
-        return render_template('add_edit_activity.html', activity=activity, deals=deals, now=now)
+        return render_template('log_activity.html', activity=activity, deals=deals, now=now)
 
     # If neither deal_id nor activity_id is provided, redirect to the log activity page
     else:
