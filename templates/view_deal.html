@@ -3,112 +3,147 @@
 {% block title %}{{ title }}{% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-8">
+<div class="container mx-auto px-4 py-8 dark:bg-gray-900">
     <div class="flex justify-between items-center mb-6">
-        <h1 class="text-3xl font-bold text-gray-800">{{ title }}</h1>
-        <a href="{{ url_for('manager_dashboard') }}" class="text-indigo-600 hover:text-indigo-800">&larr; Back to Manager Dashboard</a>
+        <h1 class="text-3xl font-bold text-gray-800 dark:text-gray-100">{{ title }}</h1>
+        {# Conditional Back Link #}
+        {% if current_user.role in ['admin', 'manager'] %}
+            <a href="{{ url_for('manager_dashboard') }}" class="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300">&larr; Back to Manager Dashboard</a>
+        {% else %}
+            <a href="{{ url_for('dashboard') }}" class="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300">&larr; Back to Dashboard</a>
+        {% endif %}
     </div>
 
     {# Deal Details Section #}
-    <div class="bg-white p-6 rounded-lg shadow-md mb-8">
-        <h2 class="text-xl font-semibold text-gray-700 mb-4">Deal Details</h2>
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-8">
+        <h2 class="text-xl font-semibold text-gray-700 dark:text-gray-200 mb-4">Deal Details</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
             <div>
-                <p class="text-sm font-medium text-gray-500">Company Name</p>
-                <p class="mt-1 text-lg text-gray-900">{{ deal.company_name | default('N/A', true) }}</p>
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Company Name</p>
+                <p class="mt-1 text-lg text-gray-900 dark:text-gray-100">{{ deal.company_name | default('N/A', true) }}</p>
             </div>
             <div>
-                <p class="text-sm font-medium text-gray-500">Contact Name</p>
-                <p class="mt-1 text-lg text-gray-900">{{ deal.contact_name | default('N/A', true) }}</p>
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Contact Name</p>
+                <p class="mt-1 text-lg text-gray-900 dark:text-gray-100">{{ deal.contact_name | default('N/A', true) }}</p>
             </div>
             <div>
-                <p class="text-sm font-medium text-gray-500">Contact Email</p>
-                <p class="mt-1 text-lg text-gray-900">{{ deal.contact_email | default('N/A', true) }}</p>
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Contact Email</p>
+                <p class="mt-1 text-lg text-gray-900 dark:text-gray-100">{{ deal.contact_email | default('N/A', true) }}</p>
             </div>
             <div>
-                <p class="text-sm font-medium text-gray-500">Revenue</p>
-                <p class="mt-1 text-lg text-gray-900">${{ "{:,.2f}".format(deal.revenue | default(0.0)) }}</p>
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Revenue</p>
+                <p class="mt-1 text-lg text-gray-900 dark:text-gray-100">${{ "{:,.2f}".format(deal.revenue | default(0.0)) }}</p>
             </div>
             <div>
-                <p class="text-sm font-medium text-gray-500">Stage</p>
-                <p class="mt-1 text-lg text-gray-900">{{ deal.stage | default('N/A', true) }}</p>
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Stage</p>
+                <p class="mt-1 text-lg text-gray-900 dark:text-gray-100">{{ deal.stage | default('N/A', true) }}</p>
             </div>
             <div>
-                <p class="text-sm font-medium text-gray-500">Close Date</p>
-                <p class="mt-1 text-lg text-gray-900">{{ deal.close_date.strftime('%Y-%m-%d') if deal.close_date else 'N/A' }}</p>
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Close Date</p>
+                <p class="mt-1 text-lg text-gray-900 dark:text-gray-100">{{ deal.close_date.strftime('%Y-%m-%d') if deal.close_date else 'N/A' }}</p>
             </div>
             <div>
-                <p class="text-sm font-medium text-gray-500">Owner</p>
-                <p class="mt-1 text-lg text-gray-900">{{ deal.owner.email | default('N/A', true) }}</p>
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Owner</p>
+                <p class="mt-1 text-lg text-gray-900 dark:text-gray-100">{{ deal.owner.email | default('N/A', true) }}</p>
             </div>
             <div>
-                <p class="text-sm font-medium text-gray-500">Created At</p>
-                <p class="mt-1 text-lg text-gray-900">{{ deal.created_at.strftime('%Y-%m-%d %H:%M') if deal.created_at else 'N/A' }}</p>
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Created At</p>
+                <p class="mt-1 text-lg text-gray-900 dark:text-gray-100">{{ deal.created_at.strftime('%Y-%m-%d %H:%M') if deal.created_at else 'N/A' }}</p>
             </div>
             <div class="md:col-span-2">
-                <p class="text-sm font-medium text-gray-500">Notes</p>
-                <p class="mt-1 text-lg text-gray-900 whitespace-pre-wrap">{{ deal.notes | default('No notes provided.', true) }}</p>
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Notes</p>
+                <p class="mt-1 text-lg text-gray-900 dark:text-gray-100 whitespace-pre-wrap">{{ deal.notes | default('No notes provided.', true) }}</p>
             </div>
+        </div>
+        <div class="mt-6 flex justify-end space-x-3">
+             <a href="{{ url_for('edit_deal', deal_id=deal.id) }}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:bg-indigo-500 dark:hover:bg-indigo-600">Edit Deal</a>
+             <form action="{{ url_for('delete_deal', deal_id=deal.id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this deal and all associated activities/attachments?');">
+                 <input type="hidden" name="_method" value="DELETE"> {# If using method override #}
+                 <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 dark:bg-red-500 dark:hover:bg-red-600">Delete Deal</button>
+             </form>
         </div>
     </div>
 
     {# Attachments Section #}
-    <div class="bg-white p-6 rounded-lg shadow-md mb-8">
-        <h2 class="text-xl font-semibold text-gray-700 mb-4">Attachments</h2>
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-8">
+        <h2 class="text-xl font-semibold text-gray-700 dark:text-gray-200 mb-4">Attachments</h2>
         {% if attachments %}
             <ul class="list-disc pl-5 space-y-2">
                 {% for attachment in attachments %}
-                    <li class="text-gray-800">
+                    <li class="text-gray-800 dark:text-gray-200">
                         <a href="{{ url_for('download_attachment', attachment_id=attachment.id) }}" 
-                           class="text-indigo-600 hover:text-indigo-800 hover:underline"
+                           class="text-indigo-600 hover:text-indigo-800 hover:underline dark:text-indigo-400 dark:hover:text-indigo-300"
                            download="{{ attachment.filename }}"> 
                             {{ attachment.filename }}
                         </a>
                         {% if attachment.description %}
-                            <span class="text-sm text-gray-500 ml-2">- {{ attachment.description }}</span>
+                            <span class="text-sm text-gray-500 dark:text-gray-400 ml-2">- {{ attachment.description }}</span>
                         {% endif %}
+                         <span class="text-xs text-gray-400 dark:text-gray-500 ml-2">({{ attachment.file_type.value }})</span> {# Display type #}
+                         <span class="text-xs text-gray-400 dark:text-gray-500 ml-2">Uploaded: {{ attachment.uploaded_at.strftime('%Y-%m-%d %H:%M') }}</span> {# Display timestamp #}
+                         {# Optional: Delete button for attachments #}
+                         <form action="{{ url_for('delete_attachment', attachment_id=attachment.id) }}" method="POST" class="inline ml-2" onsubmit="return confirm('Are you sure you want to delete this attachment?');">
+                             <input type="hidden" name="_method" value="DELETE"> {# If using method override #}
+                             <button type="submit" class="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 text-xs">(Delete)</button>
+                         </form>
                     </li>
                 {% endfor %}
             </ul>
         {% else %}
-            <p class="text-gray-600">No attachments found for this deal.</p>
+            <p class="text-gray-600 dark:text-gray-400">No attachments found for this deal.</p>
         {% endif %}
+        {# Link to Add Attachment (within the same edit deal page for simplicity) #}
+         <div class="mt-4">
+            <a href="{{ url_for('edit_deal', deal_id=deal.id, _anchor='attachments-section') }}" class="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300">+ Add Attachment</a>
+        </div>
     </div>
 
     {# Associated Activities Section #}
-    <div class="bg-white p-6 rounded-lg shadow-md">
-        <h2 class="text-xl font-semibold text-gray-700 mb-4">Associated Activities</h2>
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-semibold text-gray-700 dark:text-gray-200">Associated Activities</h2>
+            <a href="{{ url_for('add_activity_for_deal', deal_id=deal.id) }}" class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 dark:bg-green-500 dark:hover:bg-green-600">+ Add Activity</a>
+        </div>
         {% if activities %}
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead class="bg-gray-50 dark:bg-gray-700">
                         <tr>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer/Company</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Type</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Customer/Company</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Date</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Description</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">User</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th> {# Added Actions header #}
                         </tr>
                     </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
+                    <tbody class="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
                         {% for activity in activities %}
                             <tr>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ activity.activity_type }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ activity.customer.name if activity.customer else 'N/A' }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ activity.date.strftime('%Y-%m-%d %H:%M') }}</td>
-                                <td class="px-6 py-4 text-sm text-gray-500 whitespace-pre-wrap">{{ activity.description | default('N/A', true) }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ activity.author.email }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{{ activity.activity_type }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">{{ activity.customer.name if activity.customer else 'N/A' }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{{ activity.date.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-300 whitespace-pre-wrap">{{ activity.description | default('N/A', true) }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{{ activity.author.email }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium"> {# Added Actions cell #}
+                                    <a href="{{ url_for('view_activity', activity_id=activity.id) }}" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 mr-3">View</a>
+                                    <a href="{{ url_for('add_edit_activity', activity_id=activity.id) }}" class="text-yellow-600 hover:text-yellow-900 dark:text-yellow-400 dark:hover:text-yellow-300 mr-3">Edit</a>
+                                    <form action="{{ url_for('delete_activity', activity_id=activity.id) }}" method="POST" class="inline" onsubmit="return confirm('Are you sure you want to delete this activity?');">
+                                        <input type="hidden" name="_method" value="DELETE"> {# If using method override #}
+                                        <button type="submit" class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300">Delete</button>
+                                    </form>
+                                </td>
                             </tr>
                         {% else %}
                             <tr>
-                                <td colspan="5" class="px-6 py-4 text-center text-sm text-gray-500">No activities logged for this deal yet.</td>
+                                <td colspan="6" class="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">No activities logged for this deal yet.</td> {# Updated colspan #}
                             </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
         {% else %}
-            <p class="text-gray-600">No activities logged for this deal yet.</p>
+            <p class="text-gray-600 dark:text-gray-400">No activities logged for this deal yet.</p>
         {% endif %}
     </div>
 </div>

@@ -225,8 +225,8 @@ class DealAttachmentForm(FlaskForm):
 # Define DealForm
 class DealForm(FlaskForm):
     name = StringField('Deal Name', validators=[DataRequired(), Length(max=100)])
-    # Use StringField for customer, we'll handle lookup/creation in the route
-    customer = StringField('Customer Name', validators=[DataRequired(), Length(max=100)]) 
+    # Use a different name for the input field to avoid conflict with the model's relationship attribute
+    customer_name_input = StringField('Customer Name', validators=[DataRequired(), Length(max=100)])
     contact_name = StringField('Contact Name', validators=[Optional(), Length(max=100)])
     contact_email = StringField('Contact Email', validators=[Optional(), Email(), Length(max=120)])
     revenue = DecimalField('Revenue', places=2, validators=[Optional(), NumberRange(min=0)], default=0.00)
@@ -792,65 +792,134 @@ def log_activity():
         return render_template('log_activity.html', deals=deals, activities_pagination=activities_pagination, now=now, current_per_page=per_page_str)
 
 
-@app.route('/edit_activity/<int:activity_id>', methods=['GET', 'POST'])
+@app.route('/activity/add/<int:deal_id>', methods=['GET', 'POST'], endpoint='add_activity_for_deal') # Added specific endpoint
+@app.route('/activity/edit/<int:activity_id>', methods=['GET', 'POST'])
 @login_required
-def edit_activity(activity_id):
-    activity = Activity.query.get_or_404(activity_id)
-    now = datetime.now()
+def add_edit_activity(deal_id=None, activity_id=None):
+    now = datetime.now() # Get current time for pre-filling date
 
-    # Ensure the current user owns the activity
-    if activity.user_id != current_user.id:
-        flash("You don't have permission to edit this activity.", "danger")
-        return redirect(url_for('index'))
+    # --- Add Activity Logic ---
+    if deal_id:
+        # Ensure the deal exists and belongs to the current user
+        deal = Deal.query.get_or_404(deal_id)
+        if deal.user_id != current_user.id:
+            flash("You don't have permission to log an activity for this deal.", "danger")
+            return redirect(url_for('index'))
 
-    if request.method == 'POST':
-        # Get data from form
-        activity.activity_type = request.form.get('activity_type') # Correct field name
-        activity.description = request.form.get('description')       # Correct field name
-        activity.contact_name = request.form.get('contact_name')
-        company_name = request.form.get('company_name') # Keep form name for now
+        if request.method == 'POST':
+            activity_type = request.form.get('activity_type')
+            activity_date_str = request.form.get('activity_date')
+            description = request.form.get('description')
+            contact_name = request.form.get('contact_name')
+            company_name = request.form.get('company_name')
 
-        customer_id = None
-        if company_name:
-            customer = Customer.query.filter(func.lower(Customer.name) == func.lower(company_name)).first()
-            if not customer:
-                customer = Customer(name=company_name)
-                db.session.add(customer)
-                db.session.flush() # Get ID
-            customer_id = customer.id
-        activity.customer_id = customer_id # Update the customer_id
+            # --- Basic Validation ---
+            if not activity_type or not activity_date_str:
+                flash('Activity type and date are required.', 'danger')
+                return render_template('add_edit_activity.html', deal=deal, now=now)
 
-        # Handle deal_id potentially being empty/None
-        deal_id_str = request.form.get('deal_id')
-        activity.deal_id = int(deal_id_str) if deal_id_str and deal_id_str.isdigit() else None
-        # Date handling (assuming you want to update the date)
-        date_str = request.form.get('date')
-        try:
-            activity.date = datetime.strptime(date_str, '%Y-%m-%d') if date_str else datetime.utcnow()
-        except ValueError:
-            flash('Invalid date format. Please use YYYY-MM-DD.', 'warning')
-            deals = current_user.deals.order_by(Deal.name).all()
-            return render_template('edit_activity.html', activity=activity, deals=deals, now=now)
+            # --- Date Parsing ---
+            try:
+                activity_date = datetime.strptime(activity_date_str, '%Y-%m-%d').date()
+                activity_datetime = datetime.combine(activity_date, datetime.min.time())
+            except ValueError:
+                flash('Invalid date format. Please use YYYY-MM-DD.', 'warning')
+                return render_template('add_edit_activity.html', deal=deal, now=now)
 
-        # Basic validation
-        if not activity.activity_type: # Check correct field name
-            flash('Activity Type is required.', 'warning')
-            deals = current_user.deals.order_by(Deal.name).all()
-            return render_template('edit_activity.html', activity=activity, deals=deals, now=now)
+            customer_id = None
+            if company_name:
+                customer = Customer.query.filter(func.lower(Customer.name) == func.lower(company_name)).first()
+                if not customer:
+                    customer = Customer(name=company_name)
+                    db.session.add(customer)
+                    db.session.flush() # Get ID
+                customer_id = customer.id
 
-        try:
-            db.session.commit()
-            flash('Activity updated successfully!', 'success')
-            return redirect(url_for('dashboard')) # Redirect back to the dashboard
-        except Exception as e:
-            db.session.rollback()
-            flash(f'An error occurred while updating the activity: {e}', 'danger')
-            deals = current_user.deals.order_by(Deal.name).all()
-            return render_template('edit_activity.html', activity=activity, deals=deals, now=now)
+            # --- Database Operation ---
+            try:
+                new_activity = Activity(
+                    activity_type=activity_type,
+                    date=activity_datetime,
+                    description=description,
+                    deal_id=deal_id,
+                    user_id=current_user.id,
+                    contact_name=contact_name,
+                    customer_id=customer_id
+                )
+                db.session.add(new_activity)
+                db.session.commit()
+                flash('Activity logged successfully!', 'success')
+                # Redirect to the same page (or page 1) after successful POST
+                return redirect(url_for('log_activity'))
+            except Exception as e:
+                db.session.rollback()
+                print(f"Error saving activity: {e}")
+                flash(f'Error saving activity. Please try again. Details: {e}', 'danger')
+                return render_template('add_edit_activity.html', deal=deal, now=now)
 
-    # GET request: Show the edit form pre-filled with activity data
-    deals = current_user.deals.order_by(Deal.name).all()
-    return render_template('edit_activity.html', activity=activity, deals=deals, now=now)
+        # GET request: Show the add form pre-filled with deal data
+        return render_template('add_edit_activity.html', deal=deal, now=now)
+
+    # --- Edit Activity Logic ---
+    elif activity_id:
+        activity = Activity.query.get_or_404(activity_id)
+        # Ensure the current user owns the activity
+        if activity.user_id != current_user.id:
+            flash("You don't have permission to edit this activity.", "danger")
+            return redirect(url_for('index'))
+
+        if request.method == 'POST':
+            # Get data from form
+            activity.activity_type = request.form.get('activity_type') # Correct field name
+            activity.description = request.form.get('description')       # Correct field name
+            activity.contact_name = request.form.get('contact_name')
+            company_name = request.form.get('company_name') # Keep form name for now
+
+            customer_id = None
+            if company_name:
+                customer = Customer.query.filter(func.lower(Customer.name) == func.lower(company_name)).first()
+                if not customer:
+                    customer = Customer(name=company_name)
+                    db.session.add(customer)
+                    db.session.flush() # Get ID
+                customer_id = customer.id
+            activity.customer_id = customer_id # Update the customer_id
+
+            # Handle deal_id potentially being empty/None
+            deal_id_str = request.form.get('deal_id')
+            activity.deal_id = int(deal_id_str) if deal_id_str and deal_id_str.isdigit() else None
+            # Date handling (assuming you want to update the date)
+            date_str = request.form.get('date')
+            try:
+                activity.date = datetime.strptime(date_str, '%Y-%m-%d') if date_str else datetime.utcnow()
+            except ValueError:
+                flash('Invalid date format. Please use YYYY-MM-DD.', 'warning')
+                deals = current_user.deals.order_by(Deal.name).all()
+                return render_template('add_edit_activity.html', activity=activity, deals=deals, now=now)
+
+            # Basic validation
+            if not activity.activity_type: # Check correct field name
+                flash('Activity Type is required.', 'warning')
+                deals = current_user.deals.order_by(Deal.name).all()
+                return render_template('add_edit_activity.html', activity=activity, deals=deals, now=now)
+
+            try:
+                db.session.commit()
+                flash('Activity updated successfully!', 'success')
+                return redirect(url_for('dashboard')) # Redirect back to the dashboard
+            except Exception as e:
+                db.session.rollback()
+                flash(f'An error occurred while updating the activity: {e}', 'danger')
+                deals = current_user.deals.order_by(Deal.name).all()
+                return render_template('add_edit_activity.html', activity=activity, deals=deals, now=now)
+
+        # GET request: Show the edit form pre-filled with activity data
+        deals = current_user.deals.order_by(Deal.name).all()
+        return render_template('add_edit_activity.html', activity=activity, deals=deals, now=now)
+
+    # If neither deal_id nor activity_id is provided, redirect to the log activity page
+    else:
+        return redirect(url_for('log_activity'))
 
 
 # Route to delete an activity
@@ -985,6 +1054,7 @@ def edit_deal(deal_id):
     # Instantiate forms
     # For GET, populate DealForm with existing data using obj=deal
     # For POST, DealForm will be populated from request.form
+    # Note: obj=deal works for most fields, but we handle customer_name_input manually in GET
     deal_form = DealForm(request.form if request.method == 'POST' else None, obj=deal)
     attachment_form = DealAttachmentForm() # Attachment form is always fresh or populated by its own POST
 
@@ -992,7 +1062,7 @@ def edit_deal(deal_id):
     # Use validate_on_submit for the specific form, checking its submit button
     if deal_form.submit_deal_changes.data and deal_form.validate_on_submit(): 
         # Find or Create Customer (Case-insensitive search)
-        customer_name = deal_form.customer.data
+        customer_name = deal_form.customer_name_input.data # Use renamed field
         customer = Customer.query.filter(func.lower(Customer.name) == func.lower(customer_name)).first()
         if not customer:
             customer = Customer(name=customer_name)
@@ -1000,6 +1070,8 @@ def edit_deal(deal_id):
             db.session.flush() # Ensure customer gets an ID before association
         
         # Populate deal object from form data
+        # populate_obj will now skip 'customer_name_input' as it doesn't match a deal attribute
+        # It will correctly populate name, revenue, stage, etc.
         deal_form.populate_obj(deal) 
         # Manually assign customer_id after lookup/creation
         deal.customer_id = customer.id 
@@ -1010,7 +1082,8 @@ def edit_deal(deal_id):
             db.session.commit()
             flash('Deal updated successfully!', 'success')
             # Redirect to detail page after saving deal changes
-            return redirect(url_for('deal_detail', deal_id=deal.id))
+            # Use view_deal as detail page might not exist or be desired
+            return redirect(url_for('view_deal', deal_id=deal.id)) 
         except Exception as e:
             db.session.rollback()
             flash(f'Error updating deal: {str(e)}', 'danger')
@@ -1053,8 +1126,9 @@ def edit_deal(deal_id):
     # --- Handle GET Request --- 
     if request.method == 'GET':
         # Pre-populate customer name field if deal has a customer
+        # We do this manually because form field name != model attribute name
         if deal.customer:
-            deal_form.customer.data = deal.customer.name
+            deal_form.customer_name_input.data = deal.customer.name # Use renamed field
         # Dates need careful pre-population if using obj=deal doesn't work perfectly
         if deal.expected_close_date:
             deal_form.expected_close_date.data = deal.expected_close_date
