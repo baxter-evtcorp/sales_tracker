@@ -243,20 +243,21 @@ class User(UserMixin, db.Model):
     def set_password(self, password):
         self.password_hash = set_password(password)
 
+class Customer(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(150), unique=True, nullable=False)
+    # Add backref for deals and activities for easier querying from customer side if needed
+
+    def __repr__(self):
+        return f'<Customer {self.name}>'
+
 class Deal(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     stage = db.Column(db.String(50), nullable=False)
-    revenue = db.Column(db.Float, nullable=True, default=0.0)
-    gross_profit = db.Column(db.Float, nullable=True, default=0.0)
-    expected_close_date = db.Column(db.Date, nullable=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    contact_name = db.Column(db.String(100), nullable=True) # Added
-    contact_email = db.Column(db.String(120), nullable=True) # Added
-    # Relationships
-    activities = db.relationship('Activity', backref='deal', lazy='dynamic', cascade='all, delete-orphan') # Add cascade
-    attachments = db.relationship('DealAttachment', backref='deal', lazy='dynamic', cascade='all, delete-orphan') # Added relationship
-
+    revenue = db.Column(db.Float, nullable=True)
+    gross_profit = db.Column(db.Float, nullable=True)
+    expected_close_date = db.Column(db.DateTime, nullable=True)
     # MEDDPIC Fields
     metrics = db.Column(db.Text, nullable=True)
     economic_buyer = db.Column(db.Text, nullable=True)
@@ -265,6 +266,23 @@ class Deal(db.Model):
     paper_process = db.Column(db.Text, nullable=True)
     identify_pain = db.Column(db.Text, nullable=True)
     champion = db.Column(db.Text, nullable=True)
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    # Foreign Key to User
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    # Remove old text field
+    # customer = db.Column(db.String(100), nullable=True)
+    # Add Customer Foreign Key and Relationship
+    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
+    customer = db.relationship('Customer', backref=db.backref('deals', lazy=True))
+
+    # Add contact fields based on memory
+    contact_name = db.Column(db.String(100), nullable=True)
+    contact_email = db.Column(db.String(120), nullable=True)
+
+    # Relationship back to activities associated with this deal
+    activities = db.relationship('Activity', backref='deal', lazy='dynamic')
 
     def __repr__(self):
         return f'<Deal {self.name}>'
@@ -277,7 +295,11 @@ class Activity(db.Model):
     deal_id = db.Column(db.Integer, db.ForeignKey('deal.id'), nullable=True) # Optional link to a deal
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     contact_name = db.Column(db.String(100), nullable=True)
-    company_name = db.Column(db.String(100), nullable=True)
+    # Remove old text field
+    # company_name = db.Column(db.String(100), nullable=True)
+    # Add Customer Foreign Key and Relationship
+    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=True)
+    customer = db.relationship('Customer', backref=db.backref('activities', lazy=True))
 
     def __repr__(self):
         return f'<Activity {self.activity_type} on {self.date}>'
@@ -296,6 +318,7 @@ class DealAttachment(db.Model):
 
 # Add Flask-Admin views AFTER model definitions
 admin.add_view(UserAdminView(User, db.session))
+admin.add_view(AdminModelView(Customer, db.session))
 admin.add_view(AdminModelView(Deal, db.session))
 admin.add_view(AdminModelView(Activity, db.session))
 
@@ -654,6 +677,15 @@ def log_activity():
 
         deal_id = int(deal_id_str) if deal_id_str and deal_id_str.isdigit() else None
 
+        customer_id = None
+        if company_name:
+            customer = Customer.query.filter(func.lower(Customer.name) == func.lower(company_name)).first()
+            if not customer:
+                customer = Customer(name=company_name)
+                db.session.add(customer)
+                db.session.flush() # Get ID
+            customer_id = customer.id
+
         # --- Database Operation ---
         try:
             new_activity = Activity(
@@ -663,7 +695,7 @@ def log_activity():
                 deal_id=deal_id,
                 user_id=current_user.id,
                 contact_name=contact_name,
-                company_name=company_name
+                customer_id=customer_id
             )
             db.session.add(new_activity)
             db.session.commit()
@@ -730,7 +762,18 @@ def edit_activity(activity_id):
         activity.activity_type = request.form.get('activity_type') # Correct field name
         activity.description = request.form.get('description')       # Correct field name
         activity.contact_name = request.form.get('contact_name')
-        activity.company_name = request.form.get('company_name')
+        company_name = request.form.get('company_name') # Keep form name for now
+
+        customer_id = None
+        if company_name:
+            customer = Customer.query.filter(func.lower(Customer.name) == func.lower(company_name)).first()
+            if not customer:
+                customer = Customer(name=company_name)
+                db.session.add(customer)
+                db.session.flush() # Get ID
+            customer_id = customer.id
+        activity.customer_id = customer_id # Update the customer_id
+
         # Handle deal_id potentially being empty/None
         deal_id_str = request.form.get('deal_id')
         activity.deal_id = int(deal_id_str) if deal_id_str and deal_id_str.isdigit() else None
@@ -796,33 +839,46 @@ def deals():
         paper_process = request.form.get('paper_process')
         identify_pain = request.form.get('identify_pain')
         champion = request.form.get('champion')
+        customer_name = request.form.get('customer') # Get customer name
 
-        if not name or not stage:
-            flash('Deal Name and Stage are required.', 'warning')
-            # Pass pagination args in redirect if validation fails
-            return redirect(url_for('deals', page=request.args.get('page', 1), per_page=request.args.get('per_page', '10')))
-
-        try:
+        if not name or not stage or not customer_name: # Check for customer_name
+            flash('Deal Name, Stage, and Customer Name are required.', 'warning')
+            # Redirect back to the form or render the template again with existing data
+            # Depending on how you want to handle validation errors
+            deals_query = Deal.query.order_by(Deal.name).all()
+            return render_template('deals.html', title='Deals Management', deals=deals_query)
+        else:
+            revenue_str = request.form.get('revenue')
+            gross_profit_str = request.form.get('gross_profit')
+            expected_close_date_str = request.form.get('expected_close_date')
             deal_revenue = float(revenue_str) if revenue_str else 0.0
             deal_gross_profit = float(gross_profit_str) if gross_profit_str else 0.0
             close_date = datetime.strptime(expected_close_date_str, '%Y-%m-%d').date() if expected_close_date_str else None
+            # Find or Create Customer (Case-insensitive search)
+            customer = Customer.query.filter(func.lower(Customer.name) == func.lower(customer_name)).first()
+            if not customer:
+                customer = Customer(name=customer_name)
+                db.session.add(customer)
+                db.session.flush() # Ensure customer gets an ID before association
             new_deal = Deal(
                 name=name, stage=stage, revenue=deal_revenue, gross_profit=deal_gross_profit,
                 expected_close_date=close_date, user_id=current_user.id,
                 metrics=metrics, economic_buyer=economic_buyer, decision_criteria=decision_criteria,
                 decision_process=decision_process, paper_process=paper_process,
-                identify_pain=identify_pain, champion=champion
+                identify_pain=identify_pain, champion=champion, customer_id=customer.id # Use customer.id
             )
-            db.session.add(new_deal)
-            db.session.commit()
-            flash('Deal created successfully!', 'success')
-        except ValueError:
-            flash('Invalid value entered for Deal Revenue or Gross Profit.', 'error')
-        except Exception as e:
-            db.session.rollback()
-            flash(f'Error creating deal: {e}', 'error')
-        # Redirect back to the deals page, preserving current page/per_page if possible
-        return redirect(url_for('deals', page=request.args.get('page', 1), per_page=request.args.get('per_page', '10')))
+            try:
+                db.session.add(new_deal)
+                db.session.commit()
+                flash(f'Deal "{new_deal.name}" created successfully!', 'success')
+                return redirect(url_for('deals', page=1)) # Redirect to first page after creation
+            except Exception as e:
+                db.session.rollback()
+                app.logger.error(f"Error creating deal: {e}")
+                flash('An error occurred while creating the deal.', 'danger')
+                # Re-render form on error
+                deals_query = Deal.query.order_by(Deal.name).all() # Fetch deals again for template context
+                return render_template('deals.html', title='Deals Management', deals=deals_query)
 
     # --- GET request: Display deals with pagination and sorting ---
     page = request.args.get('page', 1, type=int)
@@ -911,8 +967,17 @@ def edit_deal(deal_id):
         # Assuming model is correct 'identify_pain'
         deal.identify_pain = request.form.get('implicate_pain') # Align form name 'implicate_pain' with model 'identify_pain'
         deal.champion = request.form.get('champion')
-        # Missing competition field in model? Assuming not needed based on model definition
-        # deal.competition = request.form.get('competition') 
+        customer_name = request.form.get('customer') # Get customer name
+        if not customer_name:
+            flash('Customer Name is required.', 'warning')
+            return render_template('edit_deal.html', title='Edit Deal', deal=deal)
+        # Find or Create Customer (Case-insensitive search)
+        customer = Customer.query.filter(func.lower(Customer.name) == func.lower(customer_name)).first()
+        if not customer:
+            customer = Customer(name=customer_name)
+            db.session.add(customer)
+            db.session.flush() # Ensure customer gets an ID before association
+        deal.customer_id = customer.id # Update the customer_id
 
         try:
             db.session.commit()
@@ -1023,7 +1088,7 @@ def view_deal(deal_id):
     activities = Activity.query.filter_by(deal_id=deal.id).order_by(Activity.date.desc()).all()
 
     return render_template('view_deal.html',
-                           title=f"View Deal: {deal.company_name}",
+                           title=f"View Deal: {deal.customer.name}",
                            deal=deal,
                            activities=activities)
 
@@ -1094,7 +1159,12 @@ def email_activity_report():
     activity_body = f"Activity Report for {current_user.email} ({period_desc.lower()}: {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')})\n\n"
     if activities:
         for activity in activities:
-            activity_body += f"- {activity.date.strftime('%Y-%m-%d')}: {activity.activity_type} - {activity.description}\n"
+            activity_date_str = activity.date.strftime("%Y-%m-%d")
+            deal_name = activity.deal.name if activity.deal else "N/A"
+            contact_name = activity.contact_name or "N/A"
+            company_name = activity.customer.name if activity.customer else "N/A"
+            description = activity.description or "N/A"
+            activity_body += f"- {activity_date_str}: {activity.activity_type} - {description}\n"
     else:
         activity_body += f"No activities found for {period_desc.lower()}.\n"
 
@@ -1105,7 +1175,7 @@ def email_activity_report():
             activity_date_str = activity.date.strftime("%Y-%m-%d")
             deal_name = activity.deal.name if activity.deal else "N/A"
             contact_name = activity.contact_name or "N/A"
-            company_name = activity.company_name or "N/A"
+            company_name = activity.customer.name if activity.customer else "N/A"
             description = activity.description or "N/A"
             html_table_rows += f"""
             <tr>

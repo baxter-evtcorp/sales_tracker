@@ -60,6 +60,12 @@
                 <label for="expected_close_date" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Expected Close Date</label>
                 <input type="date" name="expected_close_date" id="expected_close_date" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-300 dark:focus:border-indigo-600 focus:ring focus:ring-indigo-200 dark:focus:ring-indigo-600 focus:ring-opacity-50 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
             </div>
+            
+            <!-- Add Customer Field -->
+            <div>
+                <label for="customer" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Customer Name</label>
+                <input type="text" id="customer" name="customer" class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 dark:focus:ring-indigo-600 focus:border-indigo-500 dark:focus:border-indigo-600 sm:text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
+            </div>
 
             <!-- MEDDPIC Fields -->
             <h3 class="text-lg font-medium leading-6 text-gray-900 dark:text-gray-100 mb-2">MEDDPIC Details</h3>
@@ -129,7 +135,7 @@
                 <div class="mt-2 sm:flex sm:justify-between">
                     <div class="sm:flex">
                         <p class="flex items-center text-sm text-gray-500 dark:text-gray-400 mr-4">
-                            <svg class="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400 dark:text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm-1.75-8.5a.75.75 0 00-1.5 0v2.5a.75.75 0 001.5 0v-2.5zM10 7.75a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 7.75zM12.75 9.5a.75.75 0 00-1.5 0v2.5a.75.75 0 001.5 0v-2.5zM7.5 9.5a.75.75 0 00-1.5 0v2.5a.75.75 0 001.5 0v-2.5z" clip-rule="evenodd" /></svg> 
+                            <svg class="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400 dark:text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M10 18a8 8 0 100-16 8 8 0 000 16zm-1.75-8.5a.75.75 0 00-1.5 0v2.5a.75.75 0 001.5 0v-2.5zM10 7.75a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 7.75zM12.75 9.5a.75.75 0 00-1.5 0v2.5a.75.75 0 001.5 0v-2.5zM7.5 9.5a.75.75 0 00-1.5 0v2.5a.75.75 0 001.5 0v-2.5M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h18M3 21h18" clip-rule="evenodd" /></svg> 
                             Rev: ${{ "{:,.2f}".format(deal.revenue or 0) }}
                         </p>
                         <p class="flex items-center text-sm text-gray-500 dark:text-gray-400 mr-4">
@@ -137,9 +143,15 @@
                             GP: ${{ "{:,.2f}".format(deal.gross_profit or 0) }}
                         </p>
                         <p class="mt-2 flex items-center text-sm text-gray-500 dark:text-gray-400 sm:mt-0">
-                             <svg class="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400 dark:text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
-                               <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5m-9-6h.008v.008H12v-.008ZM12 15h.008v.008H12V15Zm0 2.25h.008v.008H12v-.008ZM9.75 15h.008v.008H9.75V15Zm0 2.25h.008v.008H9.75v-.008ZM7.5 15h.008v.008H7.5V15Zm0 2.25h.008v.008H7.5v-.008Zm6.75-4.5h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V17.25Zm0 2.25h.008v.008h-.008v-.008Zm2.25-4.5h.008v.008H16.5v-.008Zm0 2.25h.008v.008H16.5V17.25Zm0 2.25h.008v.008H16.5v-.008Z" />
-                             </svg>
+                            <svg class="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400 dark:text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h18M3 21h18" />
+                            </svg>
+                            Customer: {{ deal.customer.name if deal.customer else 'N/A' }}
+                        </p>
+                        <p class="mt-2 flex items-center text-sm text-gray-500 dark:text-gray-400 sm:mt-0 ml-4"> 
+                            <svg class="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400 dark:text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5m-9-6h.008v.008H12v-.008V3.75ZM12 15h.008v.008H12V15Zm0 2.25h.008v.008H12v-.008ZM9.75 15h.008v.008H9.75V15Zm0 2.25h.008v.008H9.75v-.008ZM7.5 15h.008v.008H7.5V15Zm0 2.25h.008v.008H7.5v-.008Zm6.75-4.5h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V17.25Zm0 2.25h.008v.008h-.008v-.008Zm2.25-4.5h.008v.008H16.5v-.008Zm0 2.25h.008v.008H16.5V17.25Zm0 2.25h.008v.008H16.5v-.008Z" />
+                            </svg>
                             {% if deal.expected_close_date %}
                                 <p>
                                     Close date: <time datetime="{{ deal.expected_close_date.strftime('%Y-%m-%d') }}">{{ deal.expected_close_date.strftime('%b %d, %Y') }}</time>

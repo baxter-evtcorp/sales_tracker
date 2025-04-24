@@ -4,7 +4,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Sales Tracker{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"> 
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script>
+      // Immediately invoked function to check and apply theme
+      (function() {
+        const htmlTag = document.documentElement;
+        const storedTheme = localStorage.getItem('color-theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        let themeToSet = 'light'; // Default
+
+        console.log('[HEAD SCRIPT] Running. Stored:', storedTheme, 'Prefers dark:', prefersDark); // DEBUG
+
+        if (storedTheme === 'dark' || (!storedTheme && prefersDark)) {
+          htmlTag.classList.add('dark');
+          themeToSet = 'dark'; // Update for logging
+        } else {
+          // Optional: explicitly remove if needed, though default is usually no class
+          htmlTag.classList.remove('dark'); // Be explicit for debugging
+        }
+        console.log('[HEAD SCRIPT] Applied theme:', themeToSet, 'HTML classes:', htmlTag.classList.toString()); // DEBUG
+      })();
+    </script>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen flex flex-col">
     <nav class="bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 shadow-md">
@@ -60,7 +80,7 @@
         &copy; {{ now.year }} Sales Tracker App
     </footer>
 
-    {# Dark Mode Toggle Script #}
+    {# Dark Mode Interaction Script (Initialization moved to <head>) #}
     <script>
         // Remove the alert now that we know the script runs
         // alert('Dark mode script is running!'); 
@@ -85,16 +105,16 @@
                  return;
             }
 
-            // Function to set the theme
-            function setTheme(theme) {
-                console.log(`Attempting to set theme to: ${theme}`); // Debug log
+            // Function to update UI and storage WHEN theme is toggled
+            function updateThemeUIAndStorage(theme) {
+                console.log(`Updating UI and storage for theme: ${theme}`); // Debug log
                 if (theme === 'dark') {
                     console.log('Adding dark class to HTML tag');
                     htmlTag.classList.add('dark');
                     console.log('Hiding light icon, showing dark icon');
                     themeToggleLightIcon.classList.add('hidden');
                     themeToggleDarkIcon.classList.remove('hidden');
-                    localStorage.setItem('color-theme', 'dark');
+                    localStorage.setItem('color-theme', 'dark'); // Store preference
                     console.log('Theme set to dark. localStorage:', localStorage.getItem('color-theme'));
                 } else {
                     console.log('Removing dark class from HTML tag');
@@ -102,7 +122,7 @@
                      console.log('Showing light icon, hiding dark icon');
                     themeToggleDarkIcon.classList.add('hidden');
                     themeToggleLightIcon.classList.remove('hidden');
-                    localStorage.setItem('color-theme', 'light');
+                    localStorage.setItem('color-theme', 'light'); // Store preference
                      console.log('Theme set to light. localStorage:', localStorage.getItem('color-theme'));
                 }
                  console.log('HTML classList after setting theme:', htmlTag.classList.toString());
@@ -110,29 +130,23 @@
                  console.log('Light icon hidden:', themeToggleLightIcon.classList.contains('hidden'));
             }
 
-            // Check initial theme on page load
-            // Default to 'light' if nothing is stored and prefers-color-scheme is not dark
-            let initialTheme = localStorage.getItem('color-theme') || 
-                               (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-            
-            console.log(`Initial theme check determined: ${initialTheme}`); // Debug log
-            // Ensure the correct icon is shown initially based on theme
-            if(initialTheme === 'dark') {
+            // Set initial icon state based on the class already set by the <head> script
+            if (htmlTag.classList.contains('dark')) {
+                console.log('Initial state is dark. Setting icons.');
                 themeToggleLightIcon.classList.add('hidden');
                 themeToggleDarkIcon.classList.remove('hidden');
             } else {
-                 themeToggleDarkIcon.classList.add('hidden');
+                console.log('Initial state is light. Setting icons.');
+                themeToggleDarkIcon.classList.add('hidden');
                 themeToggleLightIcon.classList.remove('hidden');
             }
-            // Apply the theme (this will also log)
-            setTheme(initialTheme);
 
             // Add event listener for the toggle button
             themeToggleButton.addEventListener('click', () => {
                 console.log('Toggle button clicked!'); // Debug log
                 // Determine the new theme based on the current state
                 const newTheme = htmlTag.classList.contains('dark') ? 'light' : 'dark';
-                setTheme(newTheme); // Call setTheme with the determined new theme
+                updateThemeUIAndStorage(newTheme); // Update UI and storage
             });
         });
     </script>
