@@ -27,7 +27,7 @@
     {% if pagination.pages > 1 %}
     <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
         {# Previous Button #}
-        {% set prev_url_params = kwargs|copy %}
+        {% set prev_url_params = dict(kwargs) %}
         {% do prev_url_params.update({page_param: pagination.prev_num}) %}
         {% do prev_url_params.update({per_page_param: current_per_page}) %}
         {% if sort_by %}{% do prev_url_params.update({'sort_by': sort_by}) %}{% endif %}
@@ -43,7 +43,7 @@
         {# Page Numbers #}
         {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
             {% if p %}
-                {% set page_url_params = kwargs|copy %}
+                {% set page_url_params = dict(kwargs) %}
                 {% do page_url_params.update({page_param: p}) %}
                 {% do page_url_params.update({per_page_param: current_per_page}) %}
                 {% if sort_by %}{% do page_url_params.update({'sort_by': sort_by}) %}{% endif %}
@@ -64,7 +64,7 @@
         {% endfor %}
 
         {# Next Button #}
-        {% set next_url_params = kwargs|copy %}
+        {% set next_url_params = dict(kwargs) %}
         {% do next_url_params.update({page_param: pagination.next_num}) %}
         {% do next_url_params.update({per_page_param: current_per_page}) %}
         {% if sort_by %}{% do next_url_params.update({'sort_by': sort_by}) %}{% endif %}
