@@ -33,6 +33,7 @@ from flask_wtf.file import FileAllowed, FileRequired # Added for file upload val
 from flask_wtf import FlaskForm # Added for attachment form
 from wtforms.validators import DataRequired # Added for attachment form validators
 from flask import send_from_directory # Added for serving files
+from sqlalchemy import distinct # Added distinct
 
 
 # --- App Initialization ---
@@ -174,6 +175,8 @@ class AdminModelView(ModelView):
 
 # Custom Form for Editing Users
 class UserEditForm(Form):
+    first_name = StringField('First Name', validators=[Optional(), Length(max=100)]) # Added first_name
+    last_name = StringField('Last Name', validators=[Optional(), Length(max=100)]) # Added last_name
     email = StringField('Email')
     # Use SelectField for role
     role = SelectField('Role', choices=[
@@ -269,7 +272,9 @@ class UserAdminView(AdminModelView):
 # --- Models ---
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(120), unique=True, nullable=False)
+    first_name = db.Column(db.String(100), nullable=True) # Added first_name
+    last_name = db.Column(db.String(100), nullable=True) # Added last_name
+    email = db.Column(db.String(120), unique=True, nullable=False, index=True) # Added index
     password_hash = db.Column(db.String(128), nullable=False)
     role = db.Column(db.String(20), nullable=False, default='member', index=True)
     activities = db.relationship('Activity', backref='author', lazy='dynamic')
@@ -373,8 +378,10 @@ def load_user(user_id):
 @app.cli.command('add-user')
 @click.argument('email')
 @click.argument('password')
-@click.option('--role', default='member', help='User role (e.g., member, manager)')
-def add_user(email, password, role):
+@click.argument('first_name') # Added first_name argument
+@click.argument('last_name') # Added last_name argument
+@click.option('--role', default='member', help='User role (member, manager, admin)')
+def add_user(email, password, first_name, last_name, role):
     """Adds a new user to the database."""
     existing_user = User.query.filter_by(email=email).first()
     if existing_user:
@@ -382,7 +389,7 @@ def add_user(email, password, role):
         return
 
     hashed_password = set_password(password) # Use the helper function
-    new_user = User(email=email, password_hash=hashed_password, role=role)
+    new_user = User(email=email, password_hash=hashed_password, role=role, first_name=first_name, last_name=last_name)
     db.session.add(new_user)
     try:
         db.session.commit()
@@ -529,6 +536,8 @@ def register():
     if request.method == 'POST':
         email = request.form.get('email')
         password = request.form.get('password')
+        first_name = request.form.get('first_name') # Get first name
+        last_name = request.form.get('last_name')   # Get last name
 
         # Basic validation (can be expanded)
         if not email or not password:
@@ -542,7 +551,13 @@ def register():
 
         # Create new user
         hashed_password = set_password(password)
-        new_user = User(email=email, password_hash=hashed_password)
+        new_user = User(
+            email=email, 
+            password_hash=hashed_password, 
+            role='member', # Default role
+            first_name=first_name, # Add first name
+            last_name=last_name    # Add last name
+        )
         db.session.add(new_user)
         db.session.commit()
 
@@ -562,10 +577,60 @@ def logout():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    # --- Activities Pagination ---
+    # --- Activity Filters ---
+    selected_activity_type = request.args.get('activity_type', '')
+    selected_date_range = request.args.get('date_range', 'any') # Use date range instead of specific dates
+
+    # Get distinct activity types for the current user for the filter dropdown
+    activity_types = db.session.query(distinct(Activity.activity_type)) \
+        .filter(Activity.user_id == current_user.id, Activity.activity_type.isnot(None)) \
+        .order_by(Activity.activity_type).all()
+    activity_types = [t[0] for t in activity_types if t[0]] # Flatten list and remove None/empty
+
+    # --- Activities Query & Pagination ---
     act_page = request.args.get('act_page', 1, type=int)
     act_per_page_str = request.args.get('act_per_page', '5') # Default 5 for dashboard
-    activities_query = Activity.query.options(joinedload(Activity.deal), joinedload(Activity.customer)).filter_by(user_id=current_user.id).order_by(Activity.date.desc())
+    activities_query = Activity.query.options(joinedload(Activity.deal), joinedload(Activity.customer)) \
+        .filter(Activity.user_id == current_user.id)
+
+    # Apply filters
+    if selected_activity_type:
+        activities_query = activities_query.filter(Activity.activity_type == selected_activity_type)
+
+    # Calculate date range for filtering
+    today = date.today()
+    start_date_obj = None
+    end_date_obj = None
+
+    if selected_date_range == 'today':
+        start_date_obj = today
+        end_date_obj = today
+    elif selected_date_range == 'this_week':
+        start_date_obj = today - timedelta(days=today.weekday()) # Monday
+        end_date_obj = start_date_obj + timedelta(days=6)       # Sunday
+    elif selected_date_range == 'this_month':
+        start_date_obj = today.replace(day=1)
+        # Calculate last day of month
+        next_month = today.replace(day=28) + timedelta(days=4) # Go to next month
+        end_date_obj = next_month - timedelta(days=next_month.day) # Backtrack to last day of current month
+    elif selected_date_range == 'last_30_days':
+        start_date_obj = today - timedelta(days=29)
+        end_date_obj = today
+    elif selected_date_range == 'this_year':
+        start_date_obj = today.replace(month=1, day=1)
+        end_date_obj = today.replace(month=12, day=31)
+    # 'any' requires no date filtering
+
+    # Apply date filters if calculated
+    if start_date_obj:
+        activities_query = activities_query.filter(Activity.date >= start_date_obj)
+    if end_date_obj:
+        activities_query = activities_query.filter(Activity.date <= end_date_obj)
+
+    # Apply ordering *after* filtering
+    activities_query = activities_query.order_by(Activity.date.desc())
+
+    # Apply pagination
     if act_per_page_str.lower() == 'all':
         act_per_page = activities_query.count()
         if act_per_page == 0: act_per_page = 1
@@ -573,9 +638,10 @@ def dashboard():
     else:
         try:
             act_per_page = int(act_per_page_str)
-            if act_per_page <= 0: act_per_page = 5
+            if act_per_page <= 0:
+                act_per_page = 5 # Default to 5 if invalid number <= 0
         except ValueError:
-            act_per_page = 5
+            act_per_page = 5 # Default to 5 if not a valid integer or 'all'
         activities_pagination = activities_query.paginate(page=act_page, per_page=act_per_page, error_out=False)
 
     # --- Deals Filtering & Summation ---
@@ -657,6 +723,9 @@ def dashboard():
         # Activities data (unchanged)
         activities_pagination=activities_pagination,
         current_act_per_page=act_per_page_str,
+        activity_types=activity_types, # Pass types for dropdown
+        selected_activity_type=selected_activity_type,
+        selected_date_range=selected_date_range, # Pass selected range
         # New Deals data
         filtered_deals=filtered_deals,
         # Updated totals
@@ -690,7 +759,7 @@ def log_activity():
             # Rerender form with pagination info if validation fails
             page = request.args.get('page', 1, type=int)
             per_page_str = request.args.get('per_page', '10') # Default 10 for dashboard
-            deals = Deal.query.filter_by(user_id=current_user.id).order_by(Deal.name).all()
+            deals = current_user.deals.order_by(Deal.name).all()
             activities_query = Activity.query.filter_by(user_id=current_user.id).order_by(Activity.date.desc())
             if per_page_str.lower() == 'all':
                 per_page = activities_query.count()
@@ -710,7 +779,7 @@ def log_activity():
             # Rerender form with pagination info if date parse fails
             page = request.args.get('page', 1, type=int)
             per_page_str = request.args.get('per_page', '10') # Default 10 for dashboard
-            deals = Deal.query.filter_by(user_id=current_user.id).order_by(Deal.name).all()
+            deals = current_user.deals.order_by(Deal.name).all()
             activities_query = Activity.query.filter_by(user_id=current_user.id).order_by(Activity.date.desc())
             if per_page_str.lower() == 'all':
                 per_page = activities_query.count()
@@ -755,7 +824,7 @@ def log_activity():
             # Rerender form with pagination info if commit fails
             page = request.args.get('page', 1, type=int)
             per_page_str = request.args.get('per_page', '10') # Default 10 for dashboard
-            deals = Deal.query.filter_by(user_id=current_user.id).order_by(Deal.name).all()
+            deals = current_user.deals.order_by(Deal.name).all()
             activities_query = Activity.query.filter_by(user_id=current_user.id).order_by(Activity.date.desc())
             if per_page_str.lower() == 'all':
                 per_page = activities_query.count()
@@ -771,7 +840,7 @@ def log_activity():
         page = request.args.get('page', 1, type=int)
         per_page_str = request.args.get('per_page', '10') # Default to 10
 
-        deals = Deal.query.filter_by(user_id=current_user.id).order_by(Deal.name).all()
+        deals = current_user.deals.order_by(Deal.name).all()
         activities_query = Activity.query.filter_by(user_id=current_user.id).order_by(Activity.date.desc())
 
         # Handle 'all' case
@@ -1228,8 +1297,9 @@ def email_activity_report():
         period_desc = "this week"
     elif period == 'month':
         start_date = today.replace(day=1)
-        end_date = (start_date + timedelta(days=32)).replace(day=1) - timedelta(days=1)
-        period_desc = "this month"
+        # Calculate last day of month
+        next_month = today.replace(day=28) + timedelta(days=4) # Go to next month
+        end_date = next_month - timedelta(days=next_month.day) # Backtrack to last day of current month
     else:
         flash('Invalid time period selected.', 'warning')
         return redirect(url_for('dashboard'))
@@ -1492,139 +1562,326 @@ def email_deal_report():
 def manager_dashboard():
     # Ensure only managers or admins can access
     if current_user.role not in ['manager', 'admin']:
-        flash('You do not have permission to access the Manager Dashboard.', 'danger')
-        return redirect(url_for('dashboard'))
+        flash('Access restricted to Managers and Admins.', 'warning')
+        return redirect(url_for('index'))
 
-    # --- Get Filters --- #
-    # Get raw user_id, could be None or empty string ''
-    raw_user_id = request.args.get('user_id') 
-    # Treat None or empty string as 'all'
-    selected_user_id = raw_user_id if raw_user_id else 'all' 
+    # Get filter parameters from request arguments
+    selected_user_id = request.args.get('user_id')
+    selected_last_name = request.args.get('last_name_filter', '').strip() # Get last name filter
+    selected_stage = request.args.get('stage', 'All') or 'All'
+    selected_timeframe = request.args.get('timeframe', 'All') or 'All'
+    selected_activity_type = request.args.get('activity_type')
+    selected_sort_deal = request.args.get('sort_deal', 'created_at_desc') # Default sort for deals
+    selected_sort_activity = request.args.get('sort_activity', 'date_desc') # Default sort for activities
+    report_type = request.args.get('report_type', 'deals') # Default to deals report
+    selected_date_range = request.args.get('date_range', 'any') or 'any'
 
-    selected_user = None
-    if selected_user_id != 'all':
-        # Attempt to get user only if selected_user_id is not 'all'
-        # Assume IDs are integers, convert here
+    # Base queries
+    deals_query = db.session.query(Deal).options(joinedload(Deal.owner), joinedload(Deal.customer))
+    activities_query = db.session.query(Activity).options(joinedload(Activity.author), joinedload(Activity.deal).joinedload(Deal.customer))
+
+    # --- Filtering Logic --- #
+
+    # Filter by User (using last name)
+    target_user_ids = []
+    if selected_last_name:
+        # Find users whose last name contains the filter string (case-insensitive)
+        matching_users = User.query.filter(User.last_name.ilike(f'%{selected_last_name}%')).all()
+        target_user_ids = [user.id for user in matching_users]
+        if not target_user_ids: # If no users match, return empty results
+            deals_query = deals_query.filter(Deal.user_id == -1) # Impossible condition
+            activities_query = activities_query.filter(Activity.user_id == -1)
+        else:
+            deals_query = deals_query.filter(Deal.user_id.in_(target_user_ids))
+            activities_query = activities_query.filter(Activity.user_id.in_(target_user_ids))
+
+    # Filter by Stage (for deals)
+    if selected_stage:
+        deals_query = deals_query.filter(Deal.stage == selected_stage)
+
+    # Filter by Timeframe (for deals)
+    if selected_timeframe:
+        today = date.today()
+        if selected_timeframe == 'current_quarter':
+            current_quarter_first_month = ((today.month - 1) // 3) * 3 + 1
+            start_date = date(today.year, current_quarter_first_month, 1)
+            end_month = current_quarter_first_month + 2
+            end_day = calendar.monthrange(today.year, end_month)[1]
+            end_date = date(today.year, end_month, end_day)
+        elif selected_timeframe == 'current_year':
+            start_date = date(today.year, 1, 1)
+            end_date = date(today.year, 12, 31)
+        else:
+            start_date = None
+            end_date = None
+        if start_date and end_date:
+            deals_query = deals_query.filter(
+                Deal.expected_close_date >= start_date,
+                Deal.expected_close_date <= end_date
+            )
+
+    # Filter by Activity Type (for activities)
+    if selected_activity_type:
+        activities_query = activities_query.filter(Activity.activity_type == selected_activity_type)
+
+    # --- Sorting Logic --- #
+
+    # Sorting for Deals
+    if selected_sort_deal == 'created_at_asc':
+        deals_query = deals_query.order_by(Deal.created_at.asc())
+    elif selected_sort_deal == 'created_at_desc':
+        deals_query = deals_query.order_by(Deal.created_at.desc())
+    elif selected_sort_deal == 'name_asc':
+        deals_query = deals_query.order_by(Deal.name.asc())
+    elif selected_sort_deal == 'name_desc':
+        deals_query = deals_query.order_by(Deal.name.desc())
+    elif selected_sort_deal == 'stage_asc':
+        deals_query = deals_query.order_by(Deal.stage.asc())
+    elif selected_sort_deal == 'stage_desc':
+        deals_query = deals_query.order_by(Deal.stage.desc())
+    elif selected_sort_deal == 'revenue_asc':
+        deals_query = deals_query.order_by(Deal.revenue.asc())
+    elif selected_sort_deal == 'revenue_desc':
+        deals_query = deals_query.order_by(Deal.revenue.desc())
+    elif selected_sort_deal == 'gross_profit_asc':
+        deals_query = deals_query.order_by(Deal.gross_profit.asc())
+    elif selected_sort_deal == 'gross_profit_desc':
+        deals_query = deals_query.order_by(Deal.gross_profit.desc())
+    elif selected_sort_deal == 'expected_close_date_asc':
+        deals_query = deals_query.order_by(Deal.expected_close_date.asc())
+    elif selected_sort_deal == 'expected_close_date_desc':
+        deals_query = deals_query.order_by(Deal.expected_close_date.desc())
+
+    # Sorting for Activities
+    if selected_sort_activity == 'date_asc':
+        activities_query = activities_query.order_by(Activity.date.asc())
+    elif selected_sort_activity == 'date_desc':
+        activities_query = activities_query.order_by(Activity.date.desc())
+    elif selected_sort_activity == 'type_asc':
+        activities_query = activities_query.order_by(Activity.activity_type.asc())
+    elif selected_sort_activity == 'type_desc':
+        activities_query = activities_query.order_by(Activity.activity_type.desc())
+    elif selected_sort_activity == 'deal_name_asc':
+        activities_query = activities_query.order_by(Deal.name.asc())
+    elif selected_sort_activity == 'deal_name_desc':
+        activities_query = activities_query.order_by(Deal.name.desc())
+    elif selected_sort_activity == 'customer_name_asc':
+        activities_query = activities_query.order_by(Customer.name.asc())
+    elif selected_sort_activity == 'customer_name_desc':
+        activities_query = activities_query.order_by(Customer.name.desc())
+
+    # --- Pagination Logic --- #
+
+    # Pagination for Deals
+    deal_page = request.args.get('deal_page', 1, type=int)
+    deal_per_page_str = request.args.get('deal_per_page', '10') # Default to 10
+    if deal_per_page_str.lower() == 'all':
+        deal_per_page = deals_query.count()
+        if deal_per_page == 0: deal_per_page = 1
+        deals_pagination = deals_query.paginate(page=1, per_page=deal_per_page, error_out=False)
+    else:
         try:
-            selected_user = User.query.get(int(selected_user_id)) 
+            deal_per_page = int(deal_per_page_str)
+            if deal_per_page <= 0:
+                deal_per_page = 10 # Default to 10 if invalid number <= 0
         except ValueError:
-             flash('Invalid user ID selected.', 'warning')
-             selected_user_id = 'all' # Fallback safely
+            deal_per_page = 10 # Default to 10 if not a valid integer or 'all'
+        deals_pagination = deals_query.paginate(page=deal_page, per_page=deal_per_page, error_out=False)
 
-    # Use the explicitly imported 'date' here
-    selected_year = request.args.get('year', str(date.today().year)) 
-    selected_quarter = request.args.get('quarter', 'All')
-    selected_status = request.args.get('status', 'Open') # Default to Open
+    # Pagination for Activities
+    activity_page = request.args.get('activity_page', 1, type=int)
+    activity_per_page_str = request.args.get('activity_per_page', '10') # Default to 10
+    if activity_per_page_str.lower() == 'all':
+        activity_per_page = activities_query.count()
+        if activity_per_page == 0: activity_per_page = 1
+        activities_pagination = activities_query.paginate(page=1, per_page=activity_per_page, error_out=False)
+    else:
+        try:
+            activity_per_page = int(activity_per_page_str)
+            if activity_per_page <= 0:
+                activity_per_page = 10 # Default to 10 if invalid number <= 0
+        except ValueError:
+            activity_per_page = 10 # Default to 10 if not a valid integer or 'all'
+        activities_pagination = activities_query.paginate(page=activity_page, per_page=activity_per_page, error_out=False)
 
-    # --- Dynamic Year Options --- #
-    # Calculate available years dynamically based on deals associated with the selected user
-    available_years = db.session.query(db.extract('year', Deal.expected_close_date)).distinct().order_by(db.desc(db.extract('year', Deal.expected_close_date))) 
+    # --- Fetch Users --- #
+    all_users = User.query.order_by(User.email).all()
+    users_dict = {str(user.id): user for user in all_users} # For quick lookup
+
+    # Get selected user objects based on IDs
+    selected_user = users_dict.get(selected_user_id) if selected_user_id else None
+
+    # --- Dynamic Year Options (Based on Deals User Filter) --- #
+    available_years_query = db.session.query(db.extract('year', Deal.expected_close_date)).distinct()
     if selected_user:
-        available_years = available_years.filter(Deal.user_id == selected_user.id)
-    elif selected_user_id != 'all': # Handle case where user_id is provided but user not found
-        available_years = available_years.filter(Deal.user_id == selected_user_id)
-    
-    year_options = [str(year[0]) for year in available_years.all() if year[0]]
-    # Use the explicitly imported 'date' here as well
-    current_year_str = str(date.today().year) 
+        available_years_query = available_years_query.filter(Deal.user_id == selected_user.id)
+    # No specific user filter applied if 'all' selected for deals
+
+    available_years = available_years_query.order_by(db.desc(db.extract('year', Deal.expected_close_date))).all()
+    year_options = [str(year[0]) for year in available_years if year[0]]
+    current_year_str = str(date.today().year)
     if current_year_str not in year_options:
-        year_options.insert(0, current_year_str) # Ensure current year is always an option
-    if 'All' not in year_options:
+        year_options.insert(0, current_year_str)
+    if 'All' not in year_options: # Ensure 'All' is an option
         year_options.append('All')
+
     # Correct selected_year if it's not valid
-    if selected_year not in year_options and selected_year != 'All':
-        selected_year = current_year_str if current_year_str in year_options else 'All'
+    if selected_timeframe != 'All' and selected_timeframe not in year_options:
+         selected_timeframe = current_year_str if current_year_str in year_options else 'All'
 
-    # --- User Filtering --- #
-    users = User.query.order_by(User.email).all()
-
-    # --- Deal Filtering & Summarization (Copied & Adapted from /dashboard) --- #
+    # --- Deal Filtering & Summarization (Adapted from /dashboard) --- #
     # Base query - Eagerly load customer and owner
-    deals_base_query = Deal.query.options(joinedload(Deal.customer), joinedload(Deal.owner))
+    deals_query = Deal.query.options(joinedload(Deal.customer), joinedload(Deal.owner))
 
     # Apply user filter if a user is selected
     if selected_user:
-        deals_base_query = deals_base_query.filter(Deal.user_id == selected_user.id)
+        deals_query = deals_query.filter(Deal.user_id == selected_user.id)
 
-    # Start with the base query (potentially user-filtered)
-    deals_query = deals_base_query 
-    
-    # Apply year filter (Chain from deals_query)
-    if selected_year != 'All':
+    # Apply year filter
+    if selected_timeframe != "All":
         try:
-            # Apply to the current deals_query
-            deals_query = deals_query.filter(extract('year', Deal.expected_close_date) == int(selected_year)) 
-        except ValueError:
-            flash(f"Invalid year format: {selected_year}. Showing all years.", 'warning')
-            selected_year = 'All'
-
-    # Apply quarter filter (Chain from deals_query)
-    if selected_quarter != 'All':
-        quarter_map = {'Q1': (1, 3), 'Q2': (4, 6), 'Q3': (7, 9), 'Q4': (10, 12)}
-        if selected_quarter in quarter_map:
-            start_month, end_month = quarter_map[selected_quarter]
-            # Apply to the current deals_query
-            deals_query = deals_query.filter( 
-                extract('month', Deal.expected_close_date) >= start_month,
-                extract('month', Deal.expected_close_date) <= end_month
+            year_int = int(selected_timeframe)
+            deals_query = deals_query.filter(
+                Deal.expected_close_date.isnot(None),
+                extract('year', Deal.expected_close_date) == year_int
             )
-        else:
-             flash(f"Invalid quarter selected: {selected_quarter}. Showing all quarters.", 'warning')
-             selected_quarter = 'All'
+            if selected_stage != "All":
+                 try:
+                     # Quarters are 1-based
+                     quarter_int = int(selected_stage.replace('Q', ''))
+                     if 1 <= quarter_int <= 4:
+                         deals_query = deals_query.filter(
+                             extract('quarter', Deal.expected_close_date) == quarter_int
+                         )
+                     else:
+                         selected_stage = "All" # Invalid quarter, reset to All
+                 except (ValueError, TypeError):
+                     selected_stage = "All" # Invalid quarter format, reset to All
+        except (ValueError, TypeError):
+            selected_timeframe = "All" # Invalid year format, reset to All
 
-    # Apply status filter (Chain from deals_query)
-    if selected_status != 'All':
-        # If 'Open', filter for stages that are not 'Closed Won' or 'Closed Lost'
-        if selected_status == 'Open':
-             # Apply to the current deals_query
-             deals_query = deals_query.filter( 
-                Deal.stage.notin_(['Closed Won', 'Closed Lost'])
-            )
-        # Handle 'Closed Won', 'Closed Lost' directly
-        elif selected_status in ['Closed Won', 'Closed Lost']:
-            # Apply to the current deals_query
-            deals_query = deals_query.filter(Deal.stage == selected_status) 
-        else:
-            flash(f"Invalid status selected: {selected_status}. Showing all statuses.", 'warning')
-            selected_status = 'All'
+    # Apply status filter
+    if selected_stage == "Open":
+        deals_query = deals_query.filter(~Deal.stage.in_(['Closed Won', 'Closed Lost']))
+    elif selected_stage == "Closed Won":
+        deals_query = deals_query.filter(Deal.stage == 'Closed Won')
+    elif selected_stage == "Closed Lost":
+        deals_query = deals_query.filter(Deal.stage == 'Closed Lost')
+    # Else ("All"): no status filter applied
 
-    # Final filtered deals list
-    filtered_deals = deals_query.order_by(Deal.expected_close_date.desc()).all()
+    # Order results (e.g., by close date, newest first if available)
+    deals_query = deals_query.order_by(Deal.expected_close_date.desc().nullslast(), Deal.id.desc())
 
-    # Calculate Summaries (Based on the FINAL filtered list)
-    won_open_revenue = sum(d.revenue for d in filtered_deals if d.revenue and d.stage in ['Closed Won', 'Open']) or 0
-    won_open_gp = sum(d.gross_profit for d in filtered_deals if d.gross_profit and d.stage in ['Closed Won', 'Open']) or 0
-    lost_revenue = sum(d.revenue for d in filtered_deals if d.revenue and d.stage == 'Closed Lost') or 0
-    lost_gp = sum(d.gross_profit for d in filtered_deals if d.gross_profit and d.stage == 'Closed Lost') or 0
+    # Execute query to get filtered deals
+    filtered_deals = deals_query.all()
 
-    # --- Activity Filtering (Keep existing logic) --- #
-    activities_query = Activity.query.options(joinedload(Activity.author), joinedload(Activity.deal), joinedload(Activity.customer))
+    # Calculate sums from the filtered list, separating lost deals
+    won_open_revenue = sum(d.revenue for d in filtered_deals if d.stage != 'Closed Lost' and d.revenue is not None)
+    won_open_gp = sum(d.gross_profit for d in filtered_deals if d.stage != 'Closed Lost' and d.gross_profit is not None)
+    lost_revenue = sum(d.revenue for d in filtered_deals if d.stage == 'Closed Lost' and d.revenue is not None)
+    lost_gp = sum(d.gross_profit for d in filtered_deals if d.stage == 'Closed Lost' and d.gross_profit is not None)
+
+    # --- Activity Filtering & Pagination --- #
+    # Get distinct activity types based on the *activity* user filter
+    activity_types_query = db.session.query(distinct(Activity.activity_type)) \
+        .filter(Activity.activity_type.isnot(None))
+    if selected_user:
+        activity_types_query = activity_types_query.filter(Activity.user_id == selected_user.id)
+    # No user filter if 'all' selected for activities
+    activity_types = [t[0] for t in activity_types_query.order_by(Activity.activity_type).all() if t[0]]
+
+    # Base activity query - Eager load related objects
+    activities_query = Activity.query.options(
+        joinedload(Activity.deal),
+        joinedload(Activity.customer),
+        joinedload(Activity.author) # Eager load the author (User)
+    )
+
+    # Apply activity user filter
     if selected_user:
         activities_query = activities_query.filter(Activity.user_id == selected_user.id)
-    all_activities = activities_query.order_by(Activity.date.desc()).all()
-    
-    print(f"--- DEBUG: Manager Dashboard Deals (User: {selected_user_id}, Year: {selected_year}, Q: {selected_quarter}, Status: {selected_status}) ---")
-    print(f"Filtered Deals Count: {len(filtered_deals)}")
-    # Optionally print the deals themselves if the list is small
-    # print(filtered_deals)
-    print("--- END DEBUG ---")
-    
-    return render_template('manager_dashboard.html',
-                           activities=all_activities,
-                           # Deal related variables
-                           filtered_deals=filtered_deals,
-                           won_open_revenue=won_open_revenue,
-                           won_open_gp=won_open_gp,
-                           lost_revenue=lost_revenue,
-                           lost_gp=lost_gp,
-                           year_options=year_options,
-                           selected_year=selected_year,
-                           selected_quarter=selected_quarter,
-                           selected_status=selected_status,
-                           # User filter variables
-                           all_users=users,
-                           selected_user=selected_user,
-                           title="Manager Dashboard")
+
+    # Apply activity type filter
+    if selected_activity_type:
+        activities_query = activities_query.filter(Activity.activity_type == selected_activity_type)
+
+    # Calculate and apply date range filter
+    today = date.today()
+    start_date_obj = None
+    end_date_obj = None
+    if selected_date_range == 'today':
+        start_date_obj = today
+        end_date_obj = today
+    elif selected_date_range == 'this_week':
+        start_date_obj = today - timedelta(days=today.weekday())
+        end_date_obj = start_date_obj + timedelta(days=6)
+    elif selected_date_range == 'this_month':
+        start_date_obj = today.replace(day=1)
+        next_month = today.replace(day=28) + timedelta(days=4)
+        end_date_obj = next_month - timedelta(days=next_month.day)
+    elif selected_date_range == 'last_30_days':
+        start_date_obj = today - timedelta(days=29)
+        end_date_obj = today
+    elif selected_date_range == 'this_year':
+        start_date_obj = today.replace(month=1, day=1)
+        end_date_obj = today.replace(month=12, day=31)
+
+    if start_date_obj:
+        # Ensure comparison is between date objects if Activity.date is date
+        # If Activity.date is datetime, compare directly
+        if isinstance(Activity.date.property.columns[0].type, db.Date):
+            activities_query = activities_query.filter(Activity.date >= start_date_obj)
+        else: # Assume DateTime
+            activities_query = activities_query.filter(Activity.date >= datetime.combine(start_date_obj, datetime.min.time()))
+            
+    if end_date_obj:
+        if isinstance(Activity.date.property.columns[0].type, db.Date):
+            activities_query = activities_query.filter(Activity.date <= end_date_obj)
+        else: # Assume DateTime
+            # To include the whole end day, filter up to the start of the next day
+            activities_query = activities_query.filter(Activity.date < datetime.combine(end_date_obj + timedelta(days=1), datetime.min.time()))
+
+    # Apply ordering
+    activities_query = activities_query.order_by(Activity.date.desc())
+
+    # Apply pagination
+    activities_pagination = None
+    if activity_per_page_str.lower() == 'all':
+        activity_per_page = activities_query.count()
+        if activity_per_page == 0: activity_per_page = 1 # Avoid division by zero or invalid per_page
+        activities_pagination = activities_query.paginate(page=1, per_page=activity_per_page, error_out=False)
+    else:
+        try:
+            activity_per_page = int(activity_per_page_str)
+            if activity_per_page <= 0: activity_per_page = 10 # Default to 10 if invalid number
+        except ValueError:
+            activity_per_page = 10 # Default to 10 if conversion fails
+        activities_pagination = activities_query.paginate(page=activity_page, per_page=activity_per_page, error_out=False)
+
+    return render_template(
+        'manager_dashboard.html',
+        title='Manager Dashboard',
+        # User list for filters
+        all_users=all_users,
+        # Global User filter
+        selected_user_id=selected_user_id,
+        selected_user=selected_user,
+        # Deal related data
+        selected_timeframe=selected_timeframe,
+        year_options=year_options,
+        selected_stage=selected_stage,
+        filtered_deals=filtered_deals,
+        won_open_revenue=won_open_revenue,
+        won_open_gp=won_open_gp,
+        lost_revenue=lost_revenue,
+        lost_gp=lost_gp,
+        # Activity related data (no separate user filter)
+        selected_activity_type=selected_activity_type,
+        activity_types=activity_types,
+        selected_date_range=selected_date_range,
+        activities_pagination=activities_pagination,
+        current_act_per_page=activity_per_page_str # For 'per page' selector if added later
+    )
 
 
 # --- Attachment Routes ---

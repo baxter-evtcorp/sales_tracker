@@ -3,65 +3,65 @@
 {% block title %}{{ title }}{% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-8">
+<div class="container mx-auto px-4 py-8 dark:bg-gray-900">
     <div class="flex justify-between items-center mb-6">
-        <h1 class="text-2xl font-semibold mb-4">Activity Details</h1>
-        <a href="{{ url_for('manager_dashboard') }}" class="text-indigo-600 hover:text-indigo-800">&larr; Back to Manager Dashboard</a>
+        <h1 class="text-2xl font-semibold mb-4 dark:text-gray-100">Activity Details</h1>
+        <a href="{{ url_for('manager_dashboard') }}" class="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300">&larr; Back to Manager Dashboard</a>
     </div>
 
-    <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-lg border border-gray-200 dark:border-gray-700">
         <div class="px-4 py-5 sm:px-6">
-            <h3 class="text-lg leading-6 font-medium text-gray-900">
+            <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-gray-100">
                 {{ activity.activity_type.capitalize() }} on {{ activity.date.strftime('%B %d, %Y at %H:%M') }}
             </h3>
-            <p class="mt-1 max-w-2xl text-sm text-gray-500">
+            <p class="mt-1 max-w-2xl text-sm text-gray-500 dark:text-gray-400">
                 Details of the logged activity.
             </p>
         </div>
-        <div class="border-t border-gray-200">
+        <div class="border-t border-gray-200 dark:border-gray-700">
             <dl>
-                <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                    <dt class="text-sm font-medium text-gray-500">User</dt>
-                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ activity.author.email | default('N/A', true) }}</dd>
+                <div class="bg-gray-50 dark:bg-gray-700 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-300">User</dt>
+                    <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100 sm:mt-0 sm:col-span-2">{{ activity.author.email | default('N/A', true) }}</dd>
                 </div>
-                <div class="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                    <dt class="text-sm font-medium text-gray-500">Type</dt>
-                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ activity.activity_type.capitalize() }}</dd>
+                <div class="bg-white dark:bg-gray-800 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-300">Type</dt>
+                    <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100 sm:mt-0 sm:col-span-2">{{ activity.activity_type.capitalize() }}</dd>
                 </div>
-                <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                    <dt class="text-sm font-medium text-gray-500">Date</dt>
-                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ activity.date.strftime('%Y-%m-%d %H:%M') }}</dd>
+                <div class="bg-gray-50 dark:bg-gray-700 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-300">Date</dt>
+                    <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100 sm:mt-0 sm:col-span-2">{{ activity.date.strftime('%Y-%m-%d %H:%M') }}</dd>
                 </div>
-                 <div class="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                    <dt class="text-sm font-medium text-gray-500">Contact Name</dt>
-                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ activity.contact_name | default('N/A', true) }}</dd>
+                <div class="bg-white dark:bg-gray-800 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-300">Contact Name</dt>
+                    <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100 sm:mt-0 sm:col-span-2">{{ activity.contact_name | default('N/A', true) }}</dd>
                 </div>
-                 <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                    <dt class="text-sm font-medium text-gray-500">Company Name</dt>
-                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ activity.company_name | default('N/A', true) }}</dd>
+                <div class="bg-gray-50 dark:bg-gray-700 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-300">Company Name</dt>
+                    <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100 sm:mt-0 sm:col-span-2">{{ activity.company_name | default('N/A', true) }}</dd>
                 </div>
-                <div class="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                    <dt class="text-sm font-medium text-gray-500">Related Deal</dt>
-                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                <div class="bg-white dark:bg-gray-800 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-300">Related Deal</dt>
+                    <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100 sm:mt-0 sm:col-span-2">
                         {% if activity.deal %}
-                            <a href="{{ url_for('view_deal', deal_id=activity.deal.id) }}" class="text-indigo-600 hover:text-indigo-900">
+                            <a href="{{ url_for('view_deal', deal_id=activity.deal.id) }}" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">
                                 {{ activity.deal.company_name | default('Deal', true) }}
                             </a>
                         {% else %}
-                            N/A
+                            <span class="text-gray-500 dark:text-gray-400">N/A</span>
                         {% endif %}
                     </dd>
                 </div>
-                <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                    <dt class="text-sm font-medium text-gray-500">Notes</dt>
-                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2 whitespace-pre-wrap">{{ activity.description | default('No notes provided.', true) }}</dd>
+                <div class="bg-gray-50 dark:bg-gray-700 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-300">Notes</dt>
+                    <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100 sm:mt-0 sm:col-span-2 whitespace-pre-wrap">{{ activity.description | default('No notes provided.', true) }}</dd>
                 </div>
             </dl>
         </div>
     </div>
 
     <div class="mt-6 flex space-x-3">
-        <a href="{{ url_for('manager_dashboard') }}" class="bg-white hover:bg-gray-50 text-gray-700 font-medium py-2 px-4 rounded border border-gray-300 shadow-sm inline-flex items-center">
+        <a href="{{ url_for('manager_dashboard') }}" class="bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-medium py-2 px-4 rounded border border-gray-300 dark:border-gray-600 shadow-sm inline-flex items-center">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" /></svg>
             Back to Manager Dashboard
         </a>

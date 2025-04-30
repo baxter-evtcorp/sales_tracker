@@ -1,25 +1,48 @@
 {% extends "layout.html" %}
-{% from "_macros.html" import render_field, render_pagination, render_select_field %} {# Import macros if needed #}
+{% from "_macros.html" import render_field, render_flash_messages with context %} {# Keep context for others #}
+{% from "_macros.html" import render_pagination as paginate %} {# Import pagination without context #}
 
 {% block content %}
 <div class="container mx-auto px-4 py-8 dark:bg-gray-900">
     <h1 class="text-3xl font-bold text-gray-800 dark:text-gray-100 mb-6">{{ title }}</h1>
 
-    {# Combined Filter Form #}
+    {# Global User Filter #}
     <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow mb-6 border border-gray-200 dark:border-gray-600">
-        <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">Filters</h2>
-        <form method="GET" action="{{ url_for('manager_dashboard') }}#deals-section">
-            <div class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
-                {# User Filter #}
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">User Filter</h2>
+        <form method="GET" action="{{ url_for('manager_dashboard') }}" class="mb-0">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                 <div>
                     <label for="user_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">User</label>
                     <select name="user_id" id="user_id" class="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 dark:focus:ring-indigo-600 focus:border-indigo-500 dark:focus:border-indigo-600 sm:text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
-                        <option value="" {% if not selected_user %}selected{% endif %}>-- All Users --</option>
+                        <option value="all" {% if selected_user_id == 'all' %}selected{% endif %}>-- All Users --</option>
                         {% for user in all_users %}
-                            <option value="{{ user.id }}" {% if selected_user and selected_user.id == user.id %}selected{% endif %}>{{ user.email }}</option>
+                            <option value="{{ user.id }}" {% if selected_user_id == user.id|string %}selected{% endif %}>
+    {%- if user.last_name and user.first_name -%}
+        {{ user.last_name }}, {{ user.first_name }} ({{ user.email }})
+    {%- elif user.last_name -%}
+        {{ user.last_name }} ({{ user.email }})
+    {%- else -%}
+        {{ user.email }}
+    {%- endif -%}
+</option>
                         {% endfor %}
                     </select>
                 </div>
+                <div class="md:mt-0">
+                    <button type="submit" class="w-full inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-indigo-600">
+                        Apply User
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    {# Deals Filter Form #}
+    <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow mb-6 border border-gray-200 dark:border-gray-600">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">Deals Filters</h2>
+        <form method="GET" action="{{ url_for('manager_dashboard') }}#deals-section" class="mb-0">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                {# Year Filter #}
 
                 {# Year Filter #}
                 <div>
@@ -157,9 +180,48 @@
         {# Pagination could be added here later if needed #}
     </div>
 
-    {# Activities Section (Keep existing structure for now) #}
+    {# Activity Filter Form #}
+    <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow mb-6 border border-gray-200 dark:border-gray-600">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">Activities Filters</h2>
+        <form method="GET" action="{{ url_for('manager_dashboard') }}#activities-section" class="mb-0"> {# Target activities section #}
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end"> {# Adjust columns as needed #}
+
+
+                {# Activity Type Filter #}
+                <div>
+                    <label for="activity_type" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Activity Type</label>
+                    <select id="activity_type" name="activity_type" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md dark:bg-gray-800 dark:text-gray-100">
+                        <option value="">All Types</option>
+                        {% for type in activity_types %}
+                        <option value="{{ type }}" {% if type == selected_activity_type %}selected{% endif %}>{{ type }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                {# Date Range Filter #}
+                <div>
+                    <label for="date_range" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Date Range</label>
+                    <select id="date_range" name="date_range" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md dark:bg-gray-800 dark:text-gray-100">
+                        <option value="any" {% if selected_date_range == 'any' %}selected{% endif %}>Any Time</option>
+                        <option value="today" {% if selected_date_range == 'today' %}selected{% endif %}>Today</option>
+                        <option value="this_week" {% if selected_date_range == 'this_week' %}selected{% endif %}>This Week</option>
+                        <option value="this_month" {% if selected_date_range == 'this_month' %}selected{% endif %}>This Month</option>
+                        <option value="last_30_days" {% if selected_date_range == 'last_30_days' %}selected{% endif %}>Last 30 Days</option>
+                        <option value="this_year" {% if selected_date_range == 'this_year' %}selected{% endif %}>This Year</option>
+                    </select>
+                </div>
+
+                {# Submit Button #}
+                <div class="md:mt-0">
+                    <button type="submit" class="w-full inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-indigo-600">Filter Activities</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    {# Activities Section #}
     <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-6" id="activities-section">
-        <h2 class="text-xl font-semibold text-gray-700 dark:text-gray-100 mb-4">Activities {% if selected_user %}- {{ selected_user.email }}{% else %}(All Users){% endif %}</h2>
+        <h2 class="text-xl font-semibold text-gray-700 dark:text-gray-100 mb-4">Activities {% if selected_activity_user %}- {{ selected_activity_user.email }}{% else %}(All Users){% endif %}</h2>
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead class="bg-gray-50 dark:bg-gray-700">
@@ -176,35 +238,60 @@
                     </tr>
                 </thead>
                 <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                    {% for activity in activities %}
-                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{{ activity.author.email if activity.author else 'N/A' }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{{ activity.activity_type }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{{ activity.date.strftime('%Y-%m-%d %H:%M') }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                {% if activity.deal %}
-                                    <a href="{{ url_for('view_deal', deal_id=activity.deal.id) }}" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">{{ activity.deal.name }}</a> {# Link to deal name #}
-                                {% else %}
-                                    N/A
-                                {% endif %}
-                            </td>
-                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{{ activity.customer.name if activity.customer else 'N/A' }}</td> {# Added Company Data #}
-                            <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400"><p class="truncate w-64">{{ activity.description | default('N/A', true) }}</p></td> {# Truncate long descriptions #}
-                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                {# Changed link to view_activity #}
-                                <a href="{{ url_for('view_activity', activity_id=activity.id) }}" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">View</a>
-                            </td>
-                        </tr>
+                    {# Use activities_pagination.items now #}
+                    {% if activities_pagination and activities_pagination.items %}
+                        {% for activity in activities_pagination.items %}
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{{ activity.author.email if activity.author else 'N/A' }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{{ activity.activity_type }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{{ activity.date.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                    {% if activity.deal %}
+                                        <a href="{{ url_for('view_deal', deal_id=activity.deal.id) }}" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">{{ activity.deal.name }}</a> {# Link to deal name #}
+                                    {% else %}
+                                        N/A
+                                    {% endif %}
+                                </td>
+                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{{ activity.customer.name if activity.customer else 'N/A' }}</td> {# Added Company Data #}
+                                <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400"><p class="truncate w-64">{{ activity.description | default('N/A', true) }}</p></td> {# Truncate long descriptions #}
+                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                    {# Changed link to view_activity #}
+                                    <a href="{{ url_for('view_activity', activity_id=activity.id) }}" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">View</a>
+                                </td>
+                            </tr>
+                        {% endfor %}
                     {% else %}
                         <tr>
-                            <td colspan="7" class="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">No activities found.</td> {# Updated colspan #}
+                            <td colspan="7" class="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">No activities found matching the criteria.</td> {# Updated colspan #}
                         </tr>
-                    {% endfor %}
+                    {% endif %}
                 </tbody>
             </table>
         </div>
-        {# Add pagination here later if needed #}
+        {# Activities Pagination #}
+        {% if activities_pagination %}
+            <div class="mt-4">
+                 {% set per_page_options = [10, 25, 50, 'All'] %} 
+                 {# Using standard call syntax with all arguments #}
+                 {{ paginate(
+                    pagination=activities_pagination,
+                    endpoint='manager_dashboard',
+                    per_page_options=per_page_options,
+                    current_per_page=current_act_per_page,
+                    kwargs={
+                        'fragment': '#activities-section',
+                        'user_id': selected_user_id | default('', true),
+                        'year': selected_year | default('', true),
+                        'quarter': selected_quarter | default('', true),
+                        'status': selected_status | default('', true),
+                        'activity_user_id': selected_activity_user_id | default('', true),
+                        'activity_type': selected_activity_type | default('', true),
+                        'date_range': selected_date_range | default('', true)
+                    },
+                    page_param='act_page',
+                    per_page_param='act_per_page') }}
+            </div>
+        {% endif %}
     </div>
-
 </div>
 {% endblock %}

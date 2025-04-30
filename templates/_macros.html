@@ -1,9 +1,13 @@
-{% macro render_pagination(pagination, endpoint, per_page_options, current_per_page, sort_by=None, sort_order=None, page_param='page', per_page_param='per_page') %}
+{% macro render_pagination(pagination, endpoint, per_page_options, current_per_page, sort_by=None, sort_order=None, page_param='page', per_page_param='per_page', kwargs={}) %}
+{% if kwargs is undefined %}{% set kwargs = {} %}{% endif %}
 <div class="flex flex-col sm:flex-row items-center justify-between mt-4 space-y-2 sm:space-y-0">
     {# Per Page Dropdown & Info #}
     <div class="flex items-center space-x-2 text-sm text-gray-700 dark:text-gray-400">
         <span>Show</span>
-        <select id="{{ per_page_param }}_{{ endpoint }}" name="{{ per_page_param }}" onchange="changePerPage_{{ endpoint }}_{{ per_page_param }}(this.value)"
+        <select id="{{ per_page_param }}_{{ endpoint }}" 
+                name="{{ per_page_param }}" 
+                onchange="changePerPage_{{ endpoint }}_{{ per_page_param }}(this)" 
+                data-kwargs='{{ kwargs|tojson|safe }}' 
                 class="border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600">
             {% for option in per_page_options %}
                 <option value="{{ option }}" {% if option|string == current_per_page|string %}selected{% endif %}>{{ option }}</option>
@@ -23,7 +27,7 @@
     {% if pagination.pages > 1 %}
     <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
         {# Previous Button #}
-        {% set prev_url_params = request.args.to_dict().copy() %}
+        {% set prev_url_params = kwargs|copy %}
         {% do prev_url_params.update({page_param: pagination.prev_num}) %}
         {% do prev_url_params.update({per_page_param: current_per_page}) %}
         {% if sort_by %}{% do prev_url_params.update({'sort_by': sort_by}) %}{% endif %}
@@ -39,7 +43,7 @@
         {# Page Numbers #}
         {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
             {% if p %}
-                {% set page_url_params = request.args.to_dict().copy() %}
+                {% set page_url_params = kwargs|copy %}
                 {% do page_url_params.update({page_param: p}) %}
                 {% do page_url_params.update({per_page_param: current_per_page}) %}
                 {% if sort_by %}{% do page_url_params.update({'sort_by': sort_by}) %}{% endif %}
@@ -60,7 +64,7 @@
         {% endfor %}
 
         {# Next Button #}
-        {% set next_url_params = request.args.to_dict().copy() %}
+        {% set next_url_params = kwargs|copy %}
         {% do next_url_params.update({page_param: pagination.next_num}) %}
         {% do next_url_params.update({per_page_param: current_per_page}) %}
         {% if sort_by %}{% do next_url_params.update({'sort_by': sort_by}) %}{% endif %}
@@ -78,19 +82,43 @@
 
 {# Unique function name per endpoint to avoid conflicts if multiple paginations are on one page #}
 <script>
-function changePerPage_{{ endpoint }}_{{ per_page_param }}(value) {
-    const currentUrl = new URL(window.location.href);
-    currentUrl.searchParams.set('{{ per_page_param }}', value);
-    currentUrl.searchParams.set('{{ page_param }}', '1'); // Reset to page 1 when changing per_page
-    const sortBy = currentUrl.searchParams.get('sort_by');
-    if (sortBy) {
-        currentUrl.searchParams.set('sort_by', sortBy);
+function changePerPage_{{ endpoint }}_{{ per_page_param }}(selectElement) {
+    const value = selectElement.value;
+    const currentKwargs = JSON.parse(selectElement.dataset.kwargs || '{}');
+    
+    // Construct base URL using only the endpoint
+    const url = new URL("{{ url_for(endpoint) }}", window.location.origin);
+
+    // Initialize searchParams from the base URL's search string
+    const searchParams = new URLSearchParams(url.search);
+    // It's safer to clear existing params if we rebuild them fully from kwargs
+    searchParams.clear(); 
+
+    // Add kwargs to search params
+    for (const key in currentKwargs) {
+        if (currentKwargs.hasOwnProperty(key) && currentKwargs[key] !== null && String(currentKwargs[key]).length > 0) {
+             // Only set if value is not null or empty string
+            searchParams.set(key, currentKwargs[key]);
+        }
     }
-    const sortOrder = currentUrl.searchParams.get('sort_order');
-    if (sortOrder) {
-        currentUrl.searchParams.set('sort_order', sortOrder);
+
+    // Set the new per_page and reset page number
+    searchParams.set('{{ per_page_param }}', value);
+    searchParams.set('{{ page_param }}', '1'); // Reset to page 1
+
+    // Explicitly handle sort params if they were part of kwargs (redundant if already in kwargs loop, but safe)
+    if (currentKwargs.sort_by) {
+        searchParams.set('sort_by', currentKwargs.sort_by);
     }
-    window.location.href = currentUrl.toString();
+    if (currentKwargs.sort_order) {
+        searchParams.set('sort_order', currentKwargs.sort_order);
+    }
+
+    // Append fragment identifier if present in original kwargs or request.args
+    const fragment = currentKwargs.fragment || ''; // Assuming fragment might be passed in kwargs
+    const finalUrl = url.pathname + '?' + searchParams.toString() + (fragment ? '#' + fragment.replace(/^#/, '') : '');
+
+    window.location.href = finalUrl;
 }
 </script>
 {% endmacro %}
