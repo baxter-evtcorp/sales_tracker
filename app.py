@@ -964,13 +964,13 @@ def add_edit_activity(deal_id=None, activity_id=None):
             except ValueError:
                 flash('Invalid date format. Please use YYYY-MM-DD.', 'warning')
                 deals = current_user.deals.order_by(Deal.name).all()
-                return render_template('log_activity.html', activity=activity, deals=deals, now=now)
+                return render_template('edit_activity.html', activity=activity, deals=deals, now=now)
 
             # Basic validation
             if not activity.activity_type: # Check correct field name
                 flash('Activity Type is required.', 'warning')
                 deals = current_user.deals.order_by(Deal.name).all()
-                return render_template('log_activity.html', activity=activity, deals=deals, now=now)
+                return render_template('edit_activity.html', activity=activity, deals=deals, now=now)
 
             try:
                 db.session.commit()
@@ -980,11 +980,11 @@ def add_edit_activity(deal_id=None, activity_id=None):
                 db.session.rollback()
                 flash(f'An error occurred while updating the activity: {e}', 'danger')
                 deals = current_user.deals.order_by(Deal.name).all()
-                return render_template('log_activity.html', activity=activity, deals=deals, now=now)
+                return render_template('edit_activity.html', activity=activity, deals=deals, now=now)
 
         # GET request: Show the edit form pre-filled with activity data
         deals = current_user.deals.order_by(Deal.name).all()
-        return render_template('log_activity.html', activity=activity, deals=deals, now=now)
+        return render_template('edit_activity.html', activity=activity, deals=deals, now=now)
 
     # If neither deal_id nor activity_id is provided, redirect to the log activity page
     else:
@@ -1240,12 +1240,11 @@ def delete_deal(deal_id):
 @login_required
 def view_deal(deal_id):
     # Ensure only managers or admins can access this view
-    if current_user.role not in ['manager', 'admin']:
-        flash('You do not have permission to view this page.', 'danger')
-        # Redirect to user's own dashboard if they don't have permission
-        return redirect(url_for('dashboard'))
-
     deal = Deal.query.get_or_404(deal_id)
+    # Allow managers/admins to view any deal, but regular users can only view their own deals
+    if current_user.role not in ['manager', 'admin'] and deal.user_id != current_user.id:
+        flash('You do not have permission to view this page.', 'danger')
+        return redirect(url_for('dashboard'))
     # Optionally, you might want to verify if the manager should only see deals
     # belonging to their team, but for now, allow viewing any deal if manager/admin.
 
@@ -1265,18 +1264,11 @@ def view_deal(deal_id):
 @app.route('/activity/<int:activity_id>/view')
 @login_required
 def view_activity(activity_id):
-    # Ensure only managers or admins can access this view
-    if current_user.role not in ['manager', 'admin']:
-        flash('You do not have permission to view this page.', 'danger')
-        return redirect(url_for('dashboard'))
-
     activity = Activity.query.options(joinedload(Activity.deal), joinedload(Activity.author)).get_or_404(activity_id)
-    # Allow owner, admin, or manager to view
-    if (activity.author != current_user and 
-        current_user.role not in ['admin', 'manager'] and 
-        (not activity.deal or activity.deal.owner != current_user)):
+    # Allow managers/admins to view any activity, but regular users can only view their own activities
+    if current_user.role not in ['manager', 'admin'] and activity.author != current_user:
         flash('You do not have permission to view this activity.', 'danger')
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
     return render_template('view_activity.html', title='View Activity', activity=activity)
 
 # --- Email Report Routes ---

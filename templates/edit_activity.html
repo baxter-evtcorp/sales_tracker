@@ -6,7 +6,7 @@
 <div class="container mx-auto px-4 py-8 dark:bg-gray-900">
     <h1 class="text-2xl font-semibold mb-6 dark:text-white">Edit Activity</h1>
 
-    <form method="POST" action="{{ url_for('edit_activity', activity_id=activity.id) }}" class="bg-white dark:bg-gray-800 shadow-md rounded px-8 pt-6 pb-8 mb-4">
+    <form method="POST" action="{{ url_for('add_edit_activity', activity_id=activity.id) }}" class="bg-white dark:bg-gray-800 shadow-md rounded px-8 pt-6 pb-8 mb-4">
         
         {# Activity Type #}
         <div class="mb-4">
